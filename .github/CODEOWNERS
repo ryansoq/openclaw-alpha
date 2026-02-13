@@ -1,0 +1,33 @@
+# CODEOWNERS
+# 
+# This file defines code owners for the OpenClaw Office project.
+# Code owners are automatically requested for review when someone opens a PR.
+#
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything
+* @ryansoq
+
+# Server code (TypeScript backend)
+/server/ @ryansoq
+/server/index.ts @ryansoq
+
+# Frontend code (React + Three.js)
+/src/ @ryansoq
+
+# CI/CD and workflows (Bob reviews these)
+/.github/ @ryansoq
+
+# Security-sensitive files
+/package.json @ryansoq
+/package-lock.json @ryansoq
+/.env.example @ryansoq
+
+# Documentation
+/docs/ @ryansoq
+/README.md @ryansoq
+/CONTRIBUTING.md @ryansoq
+
+# Skills and bridges
+/skills/ @ryansoq
+/nami-bridge.py @ryansoq

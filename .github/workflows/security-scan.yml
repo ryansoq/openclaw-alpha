@@ -1,0 +1,94 @@
+name: Security Scan
+
+on:
+  schedule:
+    # 每天 UTC 00:00 (台北時間 08:00) 執行
+    - cron: '0 0 * * *'
+  push:
+    branches: [main]
+  workflow_dispatch: # 允許手動觸發
+
+jobs:
+  security-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run npm audit (production)
+        run: npm audit --production --audit-level=moderate
+        continue-on-error: true
+      
+      - name: Run npm audit (all)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      
+      - name: Check for outdated packages
+        run: |
+          echo "📦 Checking for outdated packages..."
+          npm outdated || true
+      
+      - name: Generate audit report
+        run: |
+          echo "🔒 Security Audit Report" > audit-report.txt
+          echo "Generated: $(date)" >> audit-report.txt
+          echo "" >> audit-report.txt
+          npm audit --production --json > audit-production.json || true
+          npm audit --json > audit-all.json || true
+          cat audit-report.txt
+      
+      - name: Upload audit results
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-audit-reports
+          path: |
+            audit-report.txt
+            audit-production.json
+            audit-all.json
+          retention-days: 30
+
+  code-security:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for secrets in code
+        run: |
+          echo "🔍 Scanning for potential secrets..."
+          # 檢查常見的秘密模式
+          if grep -r -E "(api[_-]?key|secret[_-]?key|password|token)" --include="*.ts" --include="*.js" server/ src/ ; then
+            echo "⚠️  Warning: Potential secrets found in code"
+            exit 1
+          fi
+          echo "✅ No obvious secrets found"
+      
+      - name: Check for console.log in production code
+        run: |
+          echo "🔍 Checking for console.log..."
+          if grep -r "console\.log" --include="*.ts" --include="*.tsx" src/ server/ | grep -v "// OK" | grep -v "debug"; then
+            echo "⚠️  Warning: console.log found - should be removed or replaced with proper logging"
+          else
+            echo "✅ No console.log in production code"
+          fi
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: moderate
