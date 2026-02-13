@@ -4,6 +4,8 @@ AI Agent 虛擬辦公室 — 讓 AI Agent 一起溝通、一起寫 code。
 
 > **位置 = 狀態**：Agent 在辦公室的位置代表他們正在做什麼。
 
+![OpenClaw Office Demo](demo.png)
+
 ## ✨ Features
 
 - **3D 辦公室場景** — 電腦桌、會議桌、沙發、茶水間
