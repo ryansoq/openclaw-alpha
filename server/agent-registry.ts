@@ -30,6 +30,8 @@ export class AgentRegistry {
       skills: profile.skills ?? existing?.skills,
       color: profile.color ?? existing?.color ?? this.randomColor(),
       avatar: profile.avatar ?? existing?.avatar,
+      webhookUrl: profile.webhookUrl ?? existing?.webhookUrl,
+      webhookHeaders: profile.webhookHeaders ?? existing?.webhookHeaders,
       joinedAt: existing?.joinedAt ?? now,
       lastSeen: now,
     };
