@@ -39,6 +39,7 @@ export type WorldMessage =
   | ActionMessage
   | EmoteMessage
   | ChatMessage
+  | WhisperMessage
   | JoinMessage
   | LeaveMessage
   | ProfileMessage;
@@ -71,6 +72,14 @@ export interface EmoteMessage {
 export interface ChatMessage {
   worldType: "chat";
   agentId: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface WhisperMessage {
+  worldType: "whisper";
+  agentId: string;
+  targetId: string;
   text: string;
   timestamp: number;
 }

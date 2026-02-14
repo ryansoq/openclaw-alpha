@@ -308,7 +308,7 @@ async function handleCommand(parsed: Record<string, unknown>): Promise<unknown> 
 
   // Commands that require a registered agentId
   const agentCommands = new Set([
-    "world-move", "world-action", "world-chat", "world-emote", "world-leave",
+    "world-move", "world-action", "world-chat", "world-whisper", "world-emote", "world-leave",
   ]);
   if (agentCommands.has(command)) {
     const agentId = (args as { agentId?: string })?.agentId;
@@ -434,6 +434,20 @@ async function handleCommand(parsed: Record<string, unknown>): Promise<unknown> 
       return { ok: true };
     }
 
+    case "world-whisper": {
+      const a = args as { agentId: string; targetId: string; text: string };
+      if (!a?.agentId || !a?.targetId || !a?.text) throw new Error("agentId, targetId, and text required");
+      const msg: WorldMessage = {
+        worldType: "whisper",
+        agentId: a.agentId,
+        targetId: a.targetId,
+        text: a.text.slice(0, 500),
+        timestamp: Date.now(),
+      };
+      commandQueue.enqueue(msg);
+      return { ok: true };
+    }
+
     case "world-emote": {
       const a = args as { agentId: string; emote: string };
       if (!a?.agentId) throw new Error("agentId required");
@@ -504,6 +518,19 @@ async function handleCommand(parsed: Record<string, unknown>): Promise<unknown> 
       const since = Number(a?.since ?? 0);
       const limit = Math.min(Number(a?.limit ?? 50), 200);
       return { ok: true, events: eventStore.query(since, limit) };
+    }
+
+    case "room-whispers": {
+      const wa = args as { agent?: string; since?: number; limit?: number };
+      if (!wa?.agent) return { ok: false, error: "agent param required" };
+      const since = Number(wa.since ?? 0);
+      const limit = Math.min(Number(wa.limit ?? 20), 100);
+      const allEvents = eventStore.query(since, 500);
+      const whispers = allEvents
+        .filter(e => e.worldType === "whisper" && 
+          ((e as any).targetId === wa.agent || e.agentId === wa.agent))
+        .slice(-limit);
+      return { ok: true, agent: wa.agent, whispers, count: whispers.length };
     }
 
     case "room-mentions": {

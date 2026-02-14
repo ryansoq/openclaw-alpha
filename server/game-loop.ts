@@ -146,6 +146,9 @@ export class GameLoop {
 
     for (const event of this.tickEvents) {
       // Events from join/leave/profile/chat/emote are always sent (global)
+      // Whispers are private — never broadcast via WS
+      if (event.worldType === "whisper") continue;
+
       const isGlobal =
         event.worldType === "join" ||
         event.worldType === "leave" ||
