@@ -41,6 +41,7 @@ export async function handleIpcCommand(
       const a = args as {
         agentId: string; name?: string; pubkey?: string; bio?: string;
         capabilities?: string[]; color?: string; skills?: AgentSkillDeclaration[];
+        webhookUrl?: string; webhookHeaders?: Record<string, string>;
       };
       if (!a?.agentId) throw new Error("agentId required");
       const profile = ctx.registry.register(a);
@@ -115,19 +116,25 @@ export async function handleIpcCommand(
     case "world-chat": {
       const a = args as { agentId: string; text: string };
       if (!a?.agentId || !a?.text) throw new Error("agentId and text required");
-      const msg: WorldMessage = { worldType: "chat", agentId: a.agentId, text: a.text.slice(0, 500), timestamp: Date.now() };
+      const text = a.text.slice(0, 500);
+      const msg: WorldMessage = { worldType: "chat", agentId: a.agentId, text, timestamp: Date.now() };
       ctx.commandQueue.enqueue(msg);
+      // Fire webhooks for @mentions (non-blocking)
+      ctx.webhook.notifyMentions(a.agentId, text);
       return { ok: true };
     }
 
     case "world-whisper": {
       const a = args as { agentId: string; targetId: string; text: string };
       if (!a?.agentId || !a?.targetId || !a?.text) throw new Error("agentId, targetId, and text required");
+      const text = a.text.slice(0, 500);
       const msg: WorldMessage = {
         worldType: "whisper", agentId: a.agentId, targetId: a.targetId,
-        text: a.text.slice(0, 500), timestamp: Date.now(),
+        text, timestamp: Date.now(),
       };
       ctx.commandQueue.enqueue(msg);
+      // Wake target agent via webhook (non-blocking)
+      ctx.webhook.notifyMentions(a.agentId, `@${a.targetId} ${text}`);
       return { ok: true };
     }
 

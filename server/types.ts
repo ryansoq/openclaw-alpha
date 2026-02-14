@@ -17,6 +17,8 @@ export interface AgentProfile {
   skills?: AgentSkillDeclaration[];
   color: string;
   avatar?: string;
+  webhookUrl?: string;
+  webhookHeaders?: Record<string, string>;
   joinedAt: number;
   lastSeen: number;
 }

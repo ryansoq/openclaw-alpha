@@ -10,6 +10,7 @@ import { ClientManager } from "./client-manager.js";
 import { GameLoop, TICK_RATE } from "./game-loop.js";
 import { EventStore } from "./event-store.js";
 import { AuthManager } from "./auth.js";
+import { WebhookNotifier } from "./webhook.js";
 import { loadRoomConfig } from "./room-config.js";
 import { createRoomInfoGetter } from "./room-info.js";
 import { handleRestRoute } from "./routes/rest.js";
@@ -31,6 +32,7 @@ const nostr = new NostrWorld(RELAYS, config.roomId, config.roomName);
 const clawhub = new ClawhubStore();
 const eventStore = new EventStore();
 const auth = new AuthManager();
+const webhook = new WebhookNotifier(registry);
 
 // ── Game engine ─────────────────────────────────────────────────
 
@@ -58,7 +60,7 @@ const getRoomInfo = createRoomInfoGetter(
 
 const ctx: ServerContext = {
   registry, state, eventStore, commandQueue, clawhub,
-  nostr, clientManager, gameLoop, auth, config, getRoomInfo,
+  nostr, clientManager, gameLoop, auth, webhook, config, getRoomInfo,
 };
 
 // ── HTTP server ─────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import type { NostrWorld } from "./nostr-world.js";
 import type { ClientManager } from "./client-manager.js";
 import type { GameLoop } from "./game-loop.js";
 import type { AuthManager } from "./auth.js";
+import type { WebhookNotifier } from "./webhook.js";
 import type { RoomInfoMessage } from "./types.js";
 
 /** Shared server context passed to route handlers */
@@ -20,6 +21,7 @@ export interface ServerContext {
   clientManager: ClientManager;
   gameLoop: GameLoop;
   auth: AuthManager;
+  webhook: WebhookNotifier;
   config: { port: number; host: string; roomId: string; roomName: string; roomDescription?: string; maxAgents: number };
   getRoomInfo: () => RoomInfoMessage;
 }
