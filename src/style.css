@@ -1175,7 +1175,6 @@ body {
   z-index: 15;
   display: none;
   align-items: center;
-  justify-content: center;
   gap: 10px;
   padding: 0 16px;
   font-size: 11px;
@@ -1267,24 +1266,23 @@ body {
 /* ── Telegram Login + Chat Input ───────────────────────────── */
 
 .tg-login-wrapper {
-  padding: 6px 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  margin-top: 6px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 
 .tg-login-btn {
-  padding: 6px 14px;
+  padding: 2px 8px;
   border: 1px solid rgba(88, 86, 214, 0.3);
-  border-radius: 8px;
+  border-radius: 4px;
   background: rgba(88, 86, 214, 0.08);
   color: #5856d6;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 10px;
   cursor: pointer;
   transition: background 0.15s;
+  white-space: nowrap;
 }
 
 .tg-login-btn:hover {
@@ -1292,7 +1290,7 @@ body {
 }
 
 .tg-login-info {
-  font-size: 11px;
+  font-size: 10px;
   color: #27ae60;
   font-weight: 500;
 }

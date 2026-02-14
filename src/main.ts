@@ -12,6 +12,10 @@ import { setupTelegramLogin } from "./ui/telegram-login.js";
 import * as THREE from "three";
 import type { AgentProfile, AgentState, WorldMessage, RoomInfoMessage } from "../server/types.js";
 
+// ── Agent name registry (agentId → displayName) ──────────────
+const agentNames = new Map<string, string>();
+function nameOf(agentId: string): string { return agentNames.get(agentId) || agentId; }
+
 // ── Parse URL params ───────────────────────────────────────────
 
 const params = new URLSearchParams(window.location.search);
@@ -43,7 +47,7 @@ const chatLog = setupChatLog();
 
 // ── Telegram Login ─────────────────────────────────────────────
 
-setupTelegramLogin(chatLog.getContainer(), (auth) => {
+setupTelegramLogin(roomInfoBar.getElement(), (auth) => {
   chatLog.addSystem(`${auth.name} logged in`);
   // Show chat input after login
   chatLog.showInput(async (text) => {
@@ -83,6 +87,20 @@ ws.on("connected", async () => {
   if (profileRefreshInterval) clearInterval(profileRefreshInterval);
   profileRefreshInterval = setInterval(() => ws.requestProfiles(), 30_000);
   
+  // Pre-load agent profiles for name mapping
+  try {
+    const pUrl = serverBaseUrl ? `${serverBaseUrl}/ipc` : "/ipc";
+    const pResp = await fetch(pUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ command: "profiles" }),
+    });
+    const pData = await pResp.json();
+    if (pData.profiles) {
+      for (const p of pData.profiles) agentNames.set(p.agentId, p.name);
+    }
+  } catch (_) { /* ignore */ }
+
   // Load chat history on connect
   try {
     const apiUrl = serverBaseUrl ? `${serverBaseUrl}/ipc` : "/ipc";
@@ -94,9 +112,16 @@ ws.on("connected", async () => {
     const data = await resp.json();
     if (data.ok && data.events) {
       // Show historical chat messages
+      // First pass: build name map from join/chat events
+      for (const evt of data.events) {
+        if (evt.name) {
+          agentNames.set(evt.agentId, evt.name);
+        }
+      }
+      // Second pass: render chat messages with display names
       for (const evt of data.events) {
         if (evt.worldType === "chat") {
-          chatLog.addMessage(evt.agentId, evt.text, evt.timestamp);
+          chatLog.addMessage(evt.agentId, evt.text, evt.timestamp, nameOf(evt.agentId));
         }
       }
     }
@@ -117,6 +142,7 @@ ws.on("snapshot", (_raw) => {
   for (const agent of data.agents) {
     lobsterManager.addOrUpdate(agent.profile, agent.position);
     effects.updateLabel(agent.profile.agentId, agent.profile.name, agent.profile.color);
+    agentNames.set(agent.profile.agentId, agent.profile.name);
   }
   // Note: overlay agent list is updated via requestProfiles + join/leave,
   // NOT from snapshots (which are AOI-filtered and would hide distant agents).
@@ -159,6 +185,7 @@ ws.on("world", (_raw) => {
         { agentId: msg.agentId, x: 0, y: 0, z: 0, rotation: 0, timestamp: msg.timestamp }
       );
       effects.updateLabel(msg.agentId, msg.name, msg.color);
+      agentNames.set(msg.agentId, msg.name);
       chatLog.addSystem(`${msg.name} joined the office`);
       overlay.addAgent({
         agentId: msg.agentId,
@@ -176,13 +203,14 @@ ws.on("world", (_raw) => {
       lobsterManager.remove(msg.agentId);
       effects.removeLabel(msg.agentId);
       effects.removeBubble(msg.agentId);
-      chatLog.addSystem(`Agent ${msg.agentId} left`);
+      chatLog.addSystem(`${nameOf(msg.agentId)} left`);
       overlay.removeAgent(msg.agentId);
       break;
 
     case "chat":
+      if ((msg as any).name) agentNames.set(msg.agentId, (msg as any).name);
       effects.showBubble(msg.agentId, msg.text);
-      chatLog.addMessage(msg.agentId, msg.text);
+      chatLog.addMessage(msg.agentId, msg.text, undefined, nameOf(msg.agentId));
       break;
 
     case "emote":
@@ -207,6 +235,7 @@ ws.on("world", (_raw) => {
 
 ws.on("profiles", (_raw) => {
   const data = _raw as { profiles: AgentProfile[] };
+  for (const p of data.profiles) agentNames.set(p.agentId, p.name);
   overlay.updateAgentList(data.profiles);
 });
 
