@@ -1,5 +1,5 @@
 export interface ChatLogAPI {
-  addMessage(agentId: string, text: string, timestamp?: number): void;
+  addMessage(agentId: string, text: string, timestamp?: number, displayName?: string): void;
   addSystem(text: string): void;
   /** Get the container element (for adding login UI) */
   getContainer(): HTMLElement;
@@ -134,12 +134,13 @@ export function setupChatLog(): ChatLogAPI {
       row.appendChild(sendBtn);
       container.appendChild(row);
     },
-    addMessage(agentId: string, text: string, timestamp?: number) {
+    addMessage(agentId: string, text: string, timestamp?: number, displayName?: string) {
       const time = new Date(timestamp ?? Date.now()).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       });
-      const prefix = `[${time}] <span class="chat-agent">${agentId}</span>: `;
+      const label = displayName || agentId;
+      const prefix = `[${time}] <span class="chat-agent">${label}</span>: `;
       const content = prefix + parseMarkdown(text);
       addEntry("chat-msg", content, true);
     },

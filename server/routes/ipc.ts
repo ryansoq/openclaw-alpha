@@ -117,7 +117,8 @@ export async function handleIpcCommand(
       const a = args as { agentId: string; text: string };
       if (!a?.agentId || !a?.text) throw new Error("agentId and text required");
       const text = a.text.slice(0, 500);
-      const msg: WorldMessage = { worldType: "chat", agentId: a.agentId, text, timestamp: Date.now() };
+      const profile = ctx.registry.get(a.agentId);
+      const msg: WorldMessage = { worldType: "chat", agentId: a.agentId, text, timestamp: Date.now(), name: profile?.name ?? a.agentId };
       ctx.commandQueue.enqueue(msg);
       // Fire webhooks for @mentions (non-blocking)
       ctx.webhook.notifyMentions(a.agentId, text);

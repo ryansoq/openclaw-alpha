@@ -2,28 +2,34 @@ import type { RoomInfoMessage } from "../../server/types.js";
 
 export interface RoomInfoBarAPI {
   update(info: RoomInfoMessage): void;
+  getElement(): HTMLElement;
 }
 
 export function setupRoomInfoBar(): RoomInfoBarAPI {
   const bar = document.getElementById("room-info-bar")!;
 
+  // Container for room info (left side), separate from login (right side)
+  const infoSection = document.createElement("div");
+  infoSection.style.cssText = "display:flex;align-items:center;gap:10px;";
+  bar.appendChild(infoSection);
+
   function update(info: RoomInfoMessage): void {
-    bar.textContent = "";
+    infoSection.textContent = "";
     bar.classList.add("visible");
 
     const name = document.createElement("span");
     name.className = "rib-name";
     name.textContent = info.name;
-    bar.appendChild(name);
+    infoSection.appendChild(name);
 
     if (info.description) {
       const desc = document.createElement("span");
       desc.className = "rib-desc";
       desc.textContent = info.description;
-      bar.appendChild(desc);
+      infoSection.appendChild(desc);
     }
 
-    bar.appendChild(createSep());
+    infoSection.appendChild(createSep());
 
     const idWrap = document.createElement("span");
     idWrap.className = "rib-id";
@@ -39,14 +45,14 @@ export function setupRoomInfoBar(): RoomInfoBarAPI {
       });
     });
     idWrap.appendChild(copyBtn);
-    bar.appendChild(idWrap);
+    infoSection.appendChild(idWrap);
 
-    bar.appendChild(createSep());
+    infoSection.appendChild(createSep());
 
     const agents = document.createElement("span");
     agents.className = "rib-agents";
     agents.textContent = `${info.agents}/${info.maxAgents} agents`;
-    bar.appendChild(agents);
+    infoSection.appendChild(agents);
   }
 
   function createSep(): HTMLSpanElement {
@@ -56,5 +62,5 @@ export function setupRoomInfoBar(): RoomInfoBarAPI {
     return sep;
   }
 
-  return { update };
+  return { update, getElement: () => bar };
 }

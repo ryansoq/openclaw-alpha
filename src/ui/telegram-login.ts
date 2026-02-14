@@ -42,7 +42,7 @@ function createLoginButton(
 
   const btn = document.createElement("button");
   btn.className = "tg-login-btn";
-  btn.textContent = "🔑 Login with Telegram";
+  btn.textContent = "🔑 Login";
   btn.addEventListener("click", () => {
     openTelegramLogin(botUsername, onLogin, wrapper);
   });

@@ -166,7 +166,7 @@ export async function handleRestRoute(
       // Register as a human agent
       const agentId = `tg_${user.id}`;
       const name = user.username
-        ? `${user.first_name} (@${user.username})`
+        ? `${user.first_name}(@${user.username})`
         : user.first_name;
       const profile = ctx.registry.register({
         agentId,
