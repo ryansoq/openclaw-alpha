@@ -228,41 +228,7 @@ export function createScene() {
     obstacles.push({ x: px, z: pz, radius: 1 });
   }
 
-  // ── Floating particles (light sparkles / plankton) ─────────
-  const particleCount = 500;
-  const particleGeo = new THREE.BufferGeometry();
-  const positions = new Float32Array(particleCount * 3);
-  for (let i = 0; i < particleCount; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 100;
-    positions[i * 3 + 1] = Math.random() * 18;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
-  }
-  particleGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-
-  const particleMat = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 0.12,
-    transparent: true,
-    opacity: 0.35,
-    sizeAttenuation: true,
-  });
-
-  const particles = new THREE.Points(particleGeo, particleMat);
-  scene.add(particles);
-
-  // Animate particles gently
-  const originalPositions = positions.slice();
-  function animateParticles(time: number) {
-    const pos = particleGeo.attributes.position as THREE.BufferAttribute;
-    for (let i = 0; i < particleCount; i++) {
-      pos.array[i * 3 + 1] =
-        originalPositions[i * 3 + 1] + Math.sin(time * 0.5 + i) * 0.3;
-    }
-    pos.needsUpdate = true;
-  }
-
-  // Expose particle animation via scene userData
-  scene.userData.animateParticles = animateParticles;
+  // Particles disabled — was causing "snow" effect in office
 
   return { scene, camera, renderer, labelRenderer, controls, clock, obstacles };
 }

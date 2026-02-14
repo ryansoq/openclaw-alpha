@@ -324,13 +324,7 @@ export class LobsterManager {
       }
     }
 
-    // Animate room particles
-    const animateFn = this.scene.userData.animateParticles as
-      | ((time: number) => void)
-      | undefined;
-    if (animateFn) {
-      animateFn(performance.now() / 1000);
-    }
+    // Particles disabled
   }
 
   /** Check if a position would collide with any obstacle or another lobster */
