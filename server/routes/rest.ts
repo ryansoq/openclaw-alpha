@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ServerContext } from "../context.js";
 import { json, readBody } from "../http-utils.js";
+import { verifyTelegramAuth } from "../telegram-auth.js";
 
 /**
  * Handle REST API routes. Returns true if handled, false if not matched.
@@ -149,6 +150,50 @@ export async function handleRestRoute(
 
   if (url === "/api/clawhub/installed" && method === "GET") {
     json(res, 200, { ok: true, installed: ctx.clawhub.getInstalled() });
+    return true;
+  }
+
+  // ── /api/auth/telegram — Telegram Login verification ───────
+  if (url === "/api/auth/telegram" && method === "POST") {
+    try {
+      const body = (await readBody(req)) as Record<string, string>;
+      const botToken = process.env.TG_BOT_TOKEN;
+      if (!botToken) { json(res, 500, { ok: false, error: "TG_BOT_TOKEN not configured" }); return true; }
+
+      const user = verifyTelegramAuth(body, botToken);
+      if (!user) { json(res, 401, { ok: false, error: "Invalid or expired Telegram auth" }); return true; }
+
+      // Register as a human agent
+      const agentId = `tg_${user.id}`;
+      const name = user.username
+        ? `${user.first_name} (@${user.username})`
+        : user.first_name;
+      const profile = ctx.registry.register({
+        agentId,
+        name: `${name} 👤`,
+        bio: "Human via Telegram Login",
+        color: "#8B5CF6",
+        avatar: user.photo_url,
+        capabilities: ["human"],
+      });
+
+      const token = ctx.auth.issueToken(agentId);
+      json(res, 200, {
+        ok: true,
+        profile,
+        token,
+        user: { id: user.id, name, username: user.username },
+      });
+    } catch (err) {
+      json(res, 400, { ok: false, error: String(err) });
+    }
+    return true;
+  }
+
+  // ── /api/auth/config — TG Login widget config (public) ────
+  if (url === "/api/auth/config" && method === "GET") {
+    const botUsername = process.env.TG_BOT_USERNAME ?? "";
+    json(res, 200, { ok: true, botUsername, provider: "telegram" });
     return true;
   }
 
