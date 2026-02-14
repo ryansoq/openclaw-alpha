@@ -24,7 +24,7 @@ function generateRoomId(): string {
 export function loadRoomConfig(): RoomConfig {
   return {
     roomId: process.env.ROOM_ID ?? generateRoomId(),
-    roomName: process.env.ROOM_NAME ?? "Lobster Room",
+    roomName: process.env.ROOM_NAME ?? "Agents Room",
     roomDescription: process.env.ROOM_DESCRIPTION ?? "",
     host: process.env.WORLD_HOST ?? "127.0.0.1",
     port: parseInt(process.env.WORLD_PORT ?? "18800", 10),
