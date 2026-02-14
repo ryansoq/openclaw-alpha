@@ -80,59 +80,148 @@ export function createBuildings(scene: THREE.Scene): {
   // ══════════════════════════════════════════════════════════
   
   const wallMat = new THREE.MeshStandardMaterial({ 
-    color: 0xe8e8e8, 
-    roughness: 0.9,
+    color: 0xd0d0d0, 
+    roughness: 0.8,
     side: THREE.DoubleSide 
   });
+
+  const partitionFrameMat = new THREE.MeshStandardMaterial({
+    color: 0x606060,
+    roughness: 0.4,
+    metalness: 0.3,
+  });
+
+  const frostedGlassMat = new THREE.MeshPhysicalMaterial({
+    color: 0xc8dce8,
+    transparent: true,
+    opacity: 0.35,
+    roughness: 0.6,
+    metalness: 0.0,
+    side: THREE.DoubleSide,
+  });
   
-  // 工作區隔間（左上，Nami 的私人空間）
-  const workPartition1 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 3, 8),
+  // 工作區隔間（左上，Nami 的私人空間）- 矮牆 + 磨砂玻璃上半
+  const workPartition1Base = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 1.5, 8),
     wallMat
   );
-  workPartition1.position.set(-6, 1.5, -10);
-  workPartition1.castShadow = true;
-  scene.add(workPartition1);
+  workPartition1Base.position.set(-6, 0.75, -10);
+  workPartition1Base.castShadow = true;
+  scene.add(workPartition1Base);
+  const workPartition1Glass = new THREE.Mesh(
+    new THREE.BoxGeometry(0.15, 1.2, 8),
+    frostedGlassMat
+  );
+  workPartition1Glass.position.set(-6, 2.1, -10);
+  scene.add(workPartition1Glass);
+  // Frame top rail
+  const workFrame1Top = new THREE.Mesh(
+    new THREE.BoxGeometry(0.25, 0.08, 8),
+    partitionFrameMat
+  );
+  workFrame1Top.position.set(-6, 2.74, -10);
+  scene.add(workFrame1Top);
   obstacles.push({ x: -6, z: -10, radius: 0.5 });
 
-  // 工作區隔間（右上，同事的私人空間）
-  const workPartition2 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 3, 8),
+  // 工作區隔間（右上，同事的私人空間）- 同樣風格
+  const workPartition2Base = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 1.5, 8),
     wallMat
   );
-  workPartition2.position.set(6, 1.5, -10);
-  workPartition2.castShadow = true;
-  scene.add(workPartition2);
+  workPartition2Base.position.set(6, 0.75, -10);
+  workPartition2Base.castShadow = true;
+  scene.add(workPartition2Base);
+  const workPartition2Glass = new THREE.Mesh(
+    new THREE.BoxGeometry(0.15, 1.2, 8),
+    frostedGlassMat
+  );
+  workPartition2Glass.position.set(6, 2.1, -10);
+  scene.add(workPartition2Glass);
+  const workFrame2Top = new THREE.Mesh(
+    new THREE.BoxGeometry(0.25, 0.08, 8),
+    partitionFrameMat
+  );
+  workFrame2Top.position.set(6, 2.74, -10);
+  scene.add(workFrame2Top);
   obstacles.push({ x: 6, z: -10, radius: 0.5 });
 
-  // 休息區與工作區的隔間（三段牆，留兩個門口）
-  // 左段牆
-  const loungePartitionLeft = new THREE.Mesh(
-    new THREE.BoxGeometry(5, 2.5, 0.2),
-    wallMat
-  );
-  loungePartitionLeft.position.set(-14, 1.25, 5);
-  loungePartitionLeft.castShadow = true;
-  scene.add(loungePartitionLeft);
-  
-  // 中段牆
-  const loungePartitionMid = new THREE.Mesh(
-    new THREE.BoxGeometry(6, 2.5, 0.2),
-    wallMat
-  );
-  loungePartitionMid.position.set(0, 1.25, 5);
-  loungePartitionMid.castShadow = true;
-  scene.add(loungePartitionMid);
-  
-  // 右段牆
-  const loungePartitionRight = new THREE.Mesh(
-    new THREE.BoxGeometry(5, 2.5, 0.2),
-    wallMat
-  );
-  loungePartitionRight.position.set(14, 1.25, 5);
-  loungePartitionRight.castShadow = true;
-  scene.add(loungePartitionRight);
+  // ── 休息區與工作區的隔間（矮牆 + 磨砂玻璃，三段，留兩個門口）──
+  // Helper to create a partition segment with base wall + glass top + frame
+  function addPartitionSegment(width: number, x: number, z: number) {
+    // 矮牆底部 (1.2m)
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 1.2, 0.2),
+      wallMat
+    );
+    base.position.set(x, 0.6, z);
+    base.castShadow = true;
+    scene.add(base);
+
+    // 磨砂玻璃上半 (1.0m)
+    const glass = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 1.0, 0.15),
+      frostedGlassMat
+    );
+    glass.position.set(x, 1.7, z);
+    scene.add(glass);
+
+    // 金屬框頂部
+    const topRail = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 0.06, 0.25),
+      partitionFrameMat
+    );
+    topRail.position.set(x, 2.24, z);
+    scene.add(topRail);
+
+    // 金屬框底部分界線
+    const midRail = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 0.04, 0.22),
+      partitionFrameMat
+    );
+    midRail.position.set(x, 1.2, z);
+    scene.add(midRail);
+  }
+
+  // 左段
+  addPartitionSegment(5, -14, 5);
+  // 中段
+  addPartitionSegment(6, 0, 5);
+  // 右段
+  addPartitionSegment(5, 14, 5);
   // 兩個門口：左邊 (-8 到 -10) 和右邊 (8 到 10)
+
+  // ── 區域標示牌 ──
+  const signMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.5 });
+  const signTextMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+
+  // 工作區標示 (掛在中段隔間上方，朝北 = 工作區方向)
+  const workSign = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 0.5, 0.08),
+    signMat
+  );
+  workSign.position.set(0, 2.8, 4.9);
+  scene.add(workSign);
+  const workSignText = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.3, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0x00bcd4, emissive: 0x006064, emissiveIntensity: 0.2 })
+  );
+  workSignText.position.set(0, 2.8, 4.85);
+  scene.add(workSignText);
+
+  // 休息區標示 (朝南 = 休息區方向)
+  const loungeSign = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 0.5, 0.08),
+    signMat
+  );
+  loungeSign.position.set(0, 2.8, 5.1);
+  scene.add(loungeSign);
+  const loungeSignText = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.3, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0x7c4dff, emissive: 0x4527a0, emissiveIntensity: 0.2 })
+  );
+  loungeSignText.position.set(0, 2.8, 5.15);
+  loungeSignText.rotation.y = Math.PI;
+  scene.add(loungeSignText);
 
   // Add floating labels above each building
   for (const b of buildings) {
