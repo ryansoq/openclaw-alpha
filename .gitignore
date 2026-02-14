@@ -9,3 +9,4 @@ clawhub-installed.json
 .env
 .DS_Store
 coverage/
+data/events.jsonl
