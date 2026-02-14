@@ -348,7 +348,7 @@ export function createBuildings(scene: THREE.Scene): {
   });
   obstacles.push({ x: 12, z: 12, radius: 2.5 });
 
-  // 🚪 入口標示 (前方)
+  // 🚪 入口區 (前方) — agent 上線/離線時的位置
   const entrance = createEntrance();
   entrance.position.set(0, 0, 20);
   scene.add(entrance);
@@ -356,9 +356,42 @@ export function createBuildings(scene: THREE.Scene): {
     id: "entrance",
     name: "🚪 Entrance",
     position: new THREE.Vector3(0, 0, 20),
-    obstacleRadius: 1,
+    obstacleRadius: 2,
     mesh: entrance,
   });
+  obstacles.push({ x: 0, z: 20, radius: 2 });
+
+  // 📋 白板區 (右側牆邊) — 未來顯示任務狀態
+  const whiteboard = createWhiteboard();
+  whiteboard.position.set(18, 0, -5);
+  whiteboard.rotation.y = -Math.PI / 2; // 面向內部
+  scene.add(whiteboard);
+  buildings.push({
+    id: "whiteboard",
+    name: "📋 Board",
+    position: new THREE.Vector3(18, 0, -5),
+    obstacleRadius: 1.5,
+    mesh: whiteboard,
+  });
+  obstacles.push({ x: 18, z: -5, radius: 1.5 });
+
+  // 🌿 綠色植物 — 散落在辦公室各處
+  const plantPositions: [number, number, number][] = [
+    [-18, 0, -14],  // 左上角落
+    [18, 0, -14],   // 右上角落
+    [-18, 0, 10],   // 左下角落
+    [18, 0, 18],    // 右下角落
+    [-8, 0, 5.5],   // 左門口旁
+    [8, 0, 5.5],    // 右門口旁
+    [6, 0, 0],      // 會議桌旁
+    [-18, 0, 0],    // 左牆邊
+  ];
+  for (const [px, py, pz] of plantPositions) {
+    const plant = createPottedPlant(px + pz); // seed for variation
+    plant.position.set(px, py, pz);
+    scene.add(plant);
+    obstacles.push({ x: px, z: pz, radius: 0.5 });
+  }
 
   return { buildings, obstacles };
 }
@@ -546,16 +579,22 @@ function createPantry(): THREE.Group {
   group.name = "building_pantry";
   group.userData.buildingId = "pantry";
 
-  const counterMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 }); // 白色檯面
-  const cabinetMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.7 }); // 深木色櫃子
+  const counterMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+  const cabinetMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.7 });
   const metalMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, roughness: 0.2, metalness: 0.8 });
 
-  // 吧檯
+  // L 型吧檯 - 主體
   const counter = new THREE.Mesh(new THREE.BoxGeometry(3, 0.15, 1.2), counterMat);
   counter.position.set(0, 1.1, 0);
   counter.castShadow = true;
   counter.userData.buildingId = "pantry";
   group.add(counter);
+
+  // L 型吧檯 - 側翼
+  const counterSide = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.15, 2), counterMat);
+  counterSide.position.set(1.5, 1.1, -1.4);
+  counterSide.castShadow = true;
+  group.add(counterSide);
 
   // 底櫃
   const cabinet = new THREE.Mesh(new THREE.BoxGeometry(3, 1.1, 1.2), cabinetMat);
@@ -564,18 +603,48 @@ function createPantry(): THREE.Group {
   cabinet.userData.buildingId = "pantry";
   group.add(cabinet);
 
+  // 側翼底櫃
+  const cabinetSide = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 2), cabinetMat);
+  cabinetSide.position.set(1.5, 0.55, -1.4);
+  cabinetSide.castShadow = true;
+  group.add(cabinetSide);
+
   // 咖啡機
   const coffeeMachine = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.4), metalMat);
   coffeeMachine.position.set(-0.8, 1.45, 0);
   coffeeMachine.userData.buildingId = "pantry";
   group.add(coffeeMachine);
 
-  // 杯子
-  const cupMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.5 });
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.25, 8), cupMat);
-  cup.position.set(0.5, 1.25, 0);
-  cup.userData.buildingId = "pantry";
-  group.add(cup);
+  // 咖啡機出水口小方塊
+  const spout = new THREE.Mesh(
+    new THREE.BoxGeometry(0.15, 0.1, 0.08),
+    new THREE.MeshStandardMaterial({ color: 0x333333 })
+  );
+  spout.position.set(-0.8, 1.18, 0.1);
+  group.add(spout);
+
+  // 多個杯子，不同顏色
+  const cupColors = [0xffd700, 0xff6b6b, 0x00ced1, 0x98fb98];
+  for (let i = 0; i < cupColors.length; i++) {
+    const cupMat = new THREE.MeshStandardMaterial({ color: cupColors[i], roughness: 0.5 });
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.25, 8), cupMat);
+    cup.position.set(0.2 + i * 0.3, 1.25, 0);
+    cup.userData.buildingId = "pantry";
+    group.add(cup);
+  }
+
+  // 高腳凳 x2
+  const stoolMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
+  for (const sx of [-0.6, 0.6]) {
+    // 座面
+    const stoolSeat = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.08, 8), stoolMat);
+    stoolSeat.position.set(sx, 0.85, 1.2);
+    group.add(stoolSeat);
+    // 腳
+    const stoolLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.85, 6), metalMat);
+    stoolLeg.position.set(sx, 0.425, 1.2);
+    group.add(stoolLeg);
+  }
 
   return group;
 }
@@ -592,12 +661,170 @@ function createEntrance(): THREE.Group {
   welcomeMat.userData.buildingId = "entrance";
   group.add(welcomeMat);
 
-  // 指示牌
-  const signMat = new THREE.MeshStandardMaterial({ color: 0x2196f3, roughness: 0.5 });
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2, 0.8), signMat);
-  sign.position.set(1.8, 1, 0);
+  // 門框 - 兩根柱子
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.5 });
+  for (const side of [-1, 1]) {
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.5, 0.3), frameMat);
+    pillar.position.set(side * 1.5, 1.75, 0);
+    pillar.castShadow = true;
+    group.add(pillar);
+  }
+
+  // 門框橫樑
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.3, 0.3), frameMat);
+  lintel.position.set(0, 3.5, 0);
+  lintel.castShadow = true;
+  group.add(lintel);
+
+  // 指示牌 (發光)
+  const signMat = new THREE.MeshStandardMaterial({
+    color: 0x2196f3,
+    emissive: 0x1565c0,
+    emissiveIntensity: 0.3,
+  });
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.5, 0.08), signMat);
+  sign.position.set(0, 3.9, 0);
   sign.userData.buildingId = "entrance";
   group.add(sign);
+
+  return group;
+}
+
+function createWhiteboard(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "building_whiteboard";
+  group.userData.buildingId = "whiteboard";
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e, roughness: 0.4, metalness: 0.3 });
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.2 });
+  const markerTrayMat = new THREE.MeshStandardMaterial({ color: 0x757575, roughness: 0.5 });
+
+  // 白板面
+  const board = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 0.08), boardMat);
+  board.position.set(0, 2.2, 0);
+  board.castShadow = true;
+  board.userData.buildingId = "whiteboard";
+  group.add(board);
+
+  // 邊框
+  const frameThick = 0.1;
+  // 上
+  group.add(Object.assign(
+    new THREE.Mesh(new THREE.BoxGeometry(3.2, frameThick, 0.12), frameMat),
+    { position: new THREE.Vector3(0, 3.25, 0) }
+  ));
+  // 下
+  group.add(Object.assign(
+    new THREE.Mesh(new THREE.BoxGeometry(3.2, frameThick, 0.12), frameMat),
+    { position: new THREE.Vector3(0, 1.15, 0) }
+  ));
+  // 左
+  group.add(Object.assign(
+    new THREE.Mesh(new THREE.BoxGeometry(frameThick, 2.2, 0.12), frameMat),
+    { position: new THREE.Vector3(-1.55, 2.2, 0) }
+  ));
+  // 右
+  group.add(Object.assign(
+    new THREE.Mesh(new THREE.BoxGeometry(frameThick, 2.2, 0.12), frameMat),
+    { position: new THREE.Vector3(1.55, 2.2, 0) }
+  ));
+
+  // 筆槽
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(2, 0.08, 0.2), markerTrayMat);
+  tray.position.set(0, 1.1, 0.1);
+  group.add(tray);
+
+  // 白板筆 x3
+  const penColors = [0xe53935, 0x1e88e5, 0x43a047];
+  for (let i = 0; i < 3; i++) {
+    const pen = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.03, 0.6, 6),
+      new THREE.MeshStandardMaterial({ color: penColors[i] })
+    );
+    pen.position.set(-0.4 + i * 0.4, 1.14, 0.1);
+    pen.rotation.z = Math.PI / 2;
+    group.add(pen);
+  }
+
+  // 模擬白板上的筆跡（幾條彩色線條）
+  const sketchMat = new THREE.MeshStandardMaterial({ color: 0x1e88e5, roughness: 0.5 });
+  // 水平線
+  for (let i = 0; i < 3; i++) {
+    const line = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5 + Math.random(), 0.03, 0.01),
+      sketchMat
+    );
+    line.position.set(-0.2 + Math.random() * 0.4, 2.8 - i * 0.35, 0.05);
+    group.add(line);
+  }
+  // 紅色圓圈 (todo marker)
+  const circle = new THREE.Mesh(
+    new THREE.RingGeometry(0.15, 0.18, 16),
+    new THREE.MeshStandardMaterial({ color: 0xe53935, side: THREE.DoubleSide })
+  );
+  circle.position.set(0.8, 2.0, 0.05);
+  group.add(circle);
+
+  return group;
+}
+
+function createPottedPlant(seed: number): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "plant";
+
+  // Deterministic random from seed
+  const r = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+
+  const potColor = [0xc0392b, 0x8e6e53, 0x5d4037, 0xd4a574][Math.floor(r() * 4)];
+  const potMat = new THREE.MeshStandardMaterial({ color: potColor, roughness: 0.8 });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.8 });
+  const leafDarkMat = new THREE.MeshStandardMaterial({ color: 0x1b5e20, roughness: 0.8 });
+
+  // 花盆
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.25, 0.5, 8), potMat);
+  pot.position.set(0, 0.25, 0);
+  pot.castShadow = true;
+  group.add(pot);
+
+  // 泥土
+  const soil = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.33, 0.33, 0.05, 8),
+    new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 1 })
+  );
+  soil.position.set(0, 0.5, 0);
+  group.add(soil);
+
+  // 植物葉子 - 隨機高度和數量
+  const isSmall = r() > 0.5;
+  const leafCount = isSmall ? 3 : 5;
+  const maxH = isSmall ? 0.8 : 1.4;
+
+  for (let i = 0; i < leafCount; i++) {
+    const angle = (i / leafCount) * Math.PI * 2 + r() * 0.5;
+    const h = 0.5 + r() * maxH;
+    // 莖
+    const stem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, h, 4),
+      leafDarkMat
+    );
+    stem.position.set(Math.cos(angle) * 0.1, 0.5 + h / 2, Math.sin(angle) * 0.1);
+    stem.rotation.x = Math.sin(angle) * 0.15;
+    stem.rotation.z = Math.cos(angle) * 0.15;
+    group.add(stem);
+
+    // 葉子 (sphere squashed)
+    const leaf = new THREE.Mesh(
+      new THREE.SphereGeometry(0.15 + r() * 0.1, 6, 4),
+      leafMat
+    );
+    leaf.scale.set(1, 0.5, 1.5);
+    leaf.position.set(
+      Math.cos(angle) * 0.15,
+      0.5 + h,
+      Math.sin(angle) * 0.15
+    );
+    group.add(leaf);
+  }
 
   return group;
 }
