@@ -285,22 +285,24 @@ renderer.domElement.addEventListener("dblclick", () => {
 let viewportReportTimer = 0;
 const VIEWPORT_REPORT_INTERVAL = 1.0; // seconds
 
-// ── 3D Toggle Button (👁️) ──────────────────────────────────────
+// ── Toolbar events (from overlay toolbar) ──────────────────────
 let render3D = true;
 
-const toggleBtn = document.createElement("button");
-toggleBtn.id = "toggle-3d";
-toggleBtn.textContent = "👁️";
-toggleBtn.title = "Toggle 3D rendering";
-document.body.appendChild(toggleBtn);
-
-toggleBtn.addEventListener("click", () => {
+window.addEventListener("toolbar:toggle3d", () => {
   render3D = !render3D;
-  toggleBtn.textContent = render3D ? "👁️" : "👁️‍🗨️";
-  toggleBtn.classList.toggle("off", !render3D);
   renderer.domElement.style.display = render3D ? "" : "none";
   labelRenderer.domElement.style.display = render3D ? "" : "none";
 });
+
+window.addEventListener("toolbar:zoom", ((e: CustomEvent) => {
+  const dir = e.detail?.dir;
+  const factor = dir === "in" ? 0.8 : 1.25;
+  // Move camera closer/farther from target
+  const offset = camera.position.clone().sub(controls.target);
+  offset.multiplyScalar(factor);
+  camera.position.copy(controls.target).add(offset);
+  controls.update();
+}) as EventListener);
 
 function animate() {
   requestAnimationFrame(animate);

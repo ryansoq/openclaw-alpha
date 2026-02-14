@@ -51,34 +51,7 @@ export function createCylinderPerson(color: string, name: string): THREE.Group {
     group.add(armGroup);
   }
 
-  // ── Name Label (頭上標註) ──────────────────────────────────
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d")!;
-  canvas.width = 256;
-  canvas.height = 64;
-
-  // 繪製背景（半透明）
-  ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.roundRect(0, 10, canvas.width, canvas.height - 20, 10);
-  ctx.fill();
-
-  // 繪製文字
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 32px Arial, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(name, canvas.width / 2, canvas.height / 2);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  const labelMat = new THREE.SpriteMaterial({
-    map: texture,
-    transparent: true,
-  });
-  const label = new THREE.Sprite(labelMat);
-  label.position.set(0, 2.2, 0);
-  label.scale.set(1.5, 0.4, 1);
-  label.name = "nameLabel";
-  group.add(label);
+  // Name label is handled by EffectsManager (CSS2D) — no Sprite label here.
 
   // Scale the whole person
   group.scale.set(1.2, 1.2, 1.2);

@@ -41,7 +41,43 @@ export function setupOverlay(): OverlayAPI {
   const listEl = document.createElement("div");
   listEl.className = "overlay-list";
 
+  // ── Toolbar (below header) ──────────────────────────────────
+  const toolbar = document.createElement("div");
+  toolbar.className = "overlay-toolbar";
+
+  const zoomInBtn = document.createElement("button");
+  zoomInBtn.className = "toolbar-btn";
+  zoomInBtn.textContent = "🔍+";
+  zoomInBtn.title = "Zoom in";
+  zoomInBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("toolbar:zoom", { detail: { dir: "in" } }));
+  });
+
+  const zoomOutBtn = document.createElement("button");
+  zoomOutBtn.className = "toolbar-btn";
+  zoomOutBtn.textContent = "🔍−";
+  zoomOutBtn.title = "Zoom out";
+  zoomOutBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("toolbar:zoom", { detail: { dir: "out" } }));
+  });
+
+  const toggle3dBtn = document.createElement("button");
+  toggle3dBtn.className = "toolbar-btn";
+  toggle3dBtn.textContent = "👁️";
+  toggle3dBtn.title = "Toggle 3D rendering (hide scene to save CPU)";
+  toggle3dBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("toolbar:toggle3d"));
+  });
+
+  toolbar.appendChild(zoomInBtn);
+  toolbar.appendChild(zoomOutBtn);
+  toolbar.appendChild(toggle3dBtn);
+
   container.appendChild(header);
+  container.appendChild(toolbar);
   container.appendChild(countEl);
   container.appendChild(listEl);
 
@@ -52,6 +88,7 @@ export function setupOverlay(): OverlayAPI {
     collapsed = !collapsed;
     listEl.style.display = collapsed ? "none" : "";
     countEl.style.display = collapsed ? "none" : "";
+    toolbar.style.display = collapsed ? "none" : "";
     toggleEl.textContent = collapsed ? "▸" : "▾";
     container.classList.toggle("collapsed", collapsed);
   });
