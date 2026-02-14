@@ -109,6 +109,21 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     return json(res, 200, { ok: true, events: eventStore.query(since, limit) });
   }
 
+  // ── REST API: Mentions (unread @mentions for an agent) ───────
+  if (url.startsWith("/api/mentions") && method === "GET") {
+    const reqUrl = new URL(req.url ?? "/", "http://localhost");
+    const agent = reqUrl.searchParams.get("agent");
+    if (!agent) return json(res, 400, { ok: false, error: "agent param required" });
+    const since = Number(reqUrl.searchParams.get("since") || "0");
+    const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "20"), 100);
+    const pattern = new RegExp(`@${agent}\\b`, "i");
+    const allEvents = eventStore.query(since, 500);
+    const mentions = allEvents
+      .filter(e => e.worldType === "chat" && e.agentId !== agent && pattern.test((e as any).text ?? ""))
+      .slice(-limit);
+    return json(res, 200, { ok: true, agent, mentions, count: mentions.length });
+  }
+
   // ── REST API: Room info ─────────────────────────────────────
   if (url === "/api/room" && method === "GET") {
     return json(res, 200, { ok: true, ...getRoomInfo() });
@@ -489,6 +504,19 @@ async function handleCommand(parsed: Record<string, unknown>): Promise<unknown> 
       const since = Number(a?.since ?? 0);
       const limit = Math.min(Number(a?.limit ?? 50), 200);
       return { ok: true, events: eventStore.query(since, limit) };
+    }
+
+    case "room-mentions": {
+      const ma = args as { agent?: string; since?: number; limit?: number };
+      if (!ma?.agent) return { ok: false, error: "agent param required" };
+      const since = Number(ma.since ?? 0);
+      const limit = Math.min(Number(ma.limit ?? 20), 100);
+      const pattern = new RegExp(`@${ma.agent}\\b`, "i");
+      const allEvents = eventStore.query(since, 500);
+      const mentions = allEvents
+        .filter(e => e.worldType === "chat" && e.agentId !== ma.agent && pattern.test((e as any).text ?? ""))
+        .slice(-limit);
+      return { ok: true, agent: ma.agent, mentions, count: mentions.length };
     }
 
     case "room-invite": {
