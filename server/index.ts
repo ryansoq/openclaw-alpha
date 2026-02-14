@@ -12,6 +12,7 @@ import { ClientManager } from "./client-manager.js";
 import { GameLoop, TICK_RATE } from "./game-loop.js";
 import { loadRoomConfig } from "./room-config.js";
 import { createRoomInfoGetter } from "./room-info.js";
+import { EventStore } from "./event-store.js";
 import type { WorldMessage, JoinMessage, PositionMessage, AgentSkillDeclaration } from "./types.js";
 
 // ── Room configuration ────────────────────────────────────────
@@ -25,6 +26,7 @@ const registry = new AgentRegistry();
 const state = new WorldState(registry);
 const nostr = new NostrWorld(RELAYS, config.roomId, config.roomName);
 const clawhub = new ClawhubStore();
+const eventStore = new EventStore();
 
 // ── Game engine services ────────────────────────────────────────
 
@@ -38,7 +40,7 @@ commandQueue.setObstacles([
   { x: 0, z: -35, radius: 5 },    // Worlds Portal
 ]);
 
-const gameLoop = new GameLoop(state, spatialGrid, commandQueue, clientManager, nostr);
+const gameLoop = new GameLoop(state, spatialGrid, commandQueue, clientManager, nostr, eventStore);
 
 // ── Room info ──────────────────────────────────────────────────
 
@@ -104,7 +106,7 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     const reqUrl = new URL(req.url ?? "/", "http://localhost");
     const since = Number(reqUrl.searchParams.get("since") || "0");
     const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "50"), 200);
-    return json(res, 200, { ok: true, events: state.getEvents(since, limit) });
+    return json(res, 200, { ok: true, events: eventStore.query(since, limit) });
   }
 
   // ── REST API: Room info ─────────────────────────────────────
@@ -486,7 +488,7 @@ async function handleCommand(parsed: Record<string, unknown>): Promise<unknown> 
       const a = args as { since?: number; limit?: number };
       const since = Number(a?.since ?? 0);
       const limit = Math.min(Number(a?.limit ?? 50), 200);
-      return { ok: true, events: state.getEvents(since, limit) };
+      return { ok: true, events: eventStore.query(since, limit) };
     }
 
     case "room-invite": {
@@ -609,10 +611,13 @@ main().catch((err) => {
   process.exit(1);
 });
 
-process.on("SIGINT", () => {
-  console.log("\nShutting down...");
-  gameLoop.stop();
-  nostr.close();
-  server.close();
-  process.exit(0);
-});
+for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  process.on(sig, () => {
+    console.log(`\n[server] ${sig} received, shutting down...`);
+    gameLoop.stop();
+    eventStore.close(); // flush events to disk
+    nostr.close();
+    server.close();
+    process.exit(0);
+  });
+}

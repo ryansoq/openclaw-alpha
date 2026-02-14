@@ -5,6 +5,7 @@ import type { CommandQueue } from "./command-queue.js";
 import { ClientManager, AOI_RADIUS } from "./client-manager.js";
 import type { WorldMessage, AgentState, WSServerMessage } from "./types.js";
 import type { NostrWorld } from "./nostr-world.js";
+import type { EventStore } from "./event-store.js";
 
 /** Server tick rate in Hz */
 export const TICK_RATE = 20;
@@ -26,6 +27,7 @@ export class GameLoop {
     private commandQueue: CommandQueue,
     private clientManager: ClientManager,
     private nostr: NostrWorld,
+    private eventStore?: EventStore,
   ) {}
 
   get currentTick(): number {
@@ -56,6 +58,11 @@ export class GameLoop {
       for (const cmd of commands) {
         this.worldState.apply(cmd);
         this.tickEvents.push(cmd);
+
+        // Persist non-transient events
+        if (cmd.worldType !== "position" && cmd.worldType !== "action") {
+          this.eventStore?.append(cmd);
+        }
 
         // Clean up rate-limit bucket when agent leaves
         if (cmd.worldType === "leave") {
