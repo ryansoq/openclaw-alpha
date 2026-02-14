@@ -1,6 +1,4 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { AgentRegistry } from "./agent-registry.js";
 import { WorldState } from "./world-state.js";
 import { NostrWorld } from "./nostr-world.js";
@@ -10,10 +8,15 @@ import { SpatialGrid } from "./spatial-index.js";
 import { CommandQueue } from "./command-queue.js";
 import { ClientManager } from "./client-manager.js";
 import { GameLoop, TICK_RATE } from "./game-loop.js";
+import { EventStore } from "./event-store.js";
+import { AuthManager } from "./auth.js";
 import { loadRoomConfig } from "./room-config.js";
 import { createRoomInfoGetter } from "./room-info.js";
-import { EventStore } from "./event-store.js";
-import type { WorldMessage, JoinMessage, PositionMessage, AgentSkillDeclaration } from "./types.js";
+import { handleRestRoute } from "./routes/rest.js";
+import { handleIpcCommand } from "./routes/ipc.js";
+import { json, readBody } from "./http-utils.js";
+import type { ServerContext } from "./context.js";
+import type { WorldMessage } from "./types.js";
 
 // ── Room configuration ────────────────────────────────────────
 
@@ -27,17 +30,18 @@ const state = new WorldState(registry);
 const nostr = new NostrWorld(RELAYS, config.roomId, config.roomName);
 const clawhub = new ClawhubStore();
 const eventStore = new EventStore();
+const auth = new AuthManager();
 
-// ── Game engine services ────────────────────────────────────────
+// ── Game engine ─────────────────────────────────────────────────
 
 const spatialGrid = new SpatialGrid(10);
 const commandQueue = new CommandQueue();
 const clientManager = new ClientManager();
 
 commandQueue.setObstacles([
-  { x: -20, z: -20, radius: 4 },  // Moltbook
-  { x: 22, z: -22, radius: 6 },   // Clawhub
-  { x: 0, z: -35, radius: 5 },    // Worlds Portal
+  { x: -20, z: -20, radius: 4 },
+  { x: 22, z: -22, radius: 6 },
+  { x: 0, z: -35, radius: 5 },
 ]);
 
 const gameLoop = new GameLoop(state, spatialGrid, commandQueue, clientManager, nostr, eventStore);
@@ -50,39 +54,12 @@ const getRoomInfo = createRoomInfoGetter(
   () => nostr.getChannelId(),
 );
 
-// ── Helper functions ────────────────────────────────────────────
+// ── Shared context for route handlers ──────────────────────────
 
-function readBody(req: IncomingMessage, maxBytes = 64 * 1024): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    let size = 0;
-    req.on("data", (chunk: Buffer | string) => {
-      size += typeof chunk === "string" ? chunk.length : chunk.byteLength;
-      if (size > maxBytes) {
-        req.destroy();
-        reject(new Error("Request body too large"));
-        return;
-      }
-      body += chunk;
-    });
-    req.on("end", () => {
-      try {
-        resolve(JSON.parse(body));
-      } catch (err) {
-        reject(err);
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
-function json(res: ServerResponse, status: number, data: unknown): void {
-  res.writeHead(status, {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  });
-  res.end(JSON.stringify(data));
-}
+const ctx: ServerContext = {
+  registry, state, eventStore, commandQueue, clawhub,
+  nostr, clientManager, gameLoop, auth, config, getRoomInfo,
+};
 
 // ── HTTP server ─────────────────────────────────────────────────
 
@@ -101,179 +78,18 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     return;
   }
 
-  // ── REST API: Room events (chat history for agent collaboration) ─
-  if (url.startsWith("/api/events") && method === "GET") {
-    const reqUrl = new URL(req.url ?? "/", "http://localhost");
-    const since = Number(reqUrl.searchParams.get("since") || "0");
-    const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "50"), 200);
-    return json(res, 200, { ok: true, events: eventStore.query(since, limit) });
-  }
+  // REST API routes
+  if (await handleRestRoute(req, res, ctx)) return;
 
-  // ── REST API: Mentions (unread @mentions for an agent) ───────
-  if (url.startsWith("/api/mentions") && method === "GET") {
-    const reqUrl = new URL(req.url ?? "/", "http://localhost");
-    const agent = reqUrl.searchParams.get("agent");
-    if (!agent) return json(res, 400, { ok: false, error: "agent param required" });
-    const since = Number(reqUrl.searchParams.get("since") || "0");
-    const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "20"), 100);
-    const pattern = new RegExp(`@${agent}\\b`, "i");
-    const allEvents = eventStore.query(since, 500);
-    const mentions = allEvents
-      .filter(e => e.worldType === "chat" && e.agentId !== agent && pattern.test((e as any).text ?? ""))
-      .slice(-limit);
-    return json(res, 200, { ok: true, agent, mentions, count: mentions.length });
-  }
-
-  // ── REST API: Room info ─────────────────────────────────────
-  if (url === "/api/room" && method === "GET") {
-    return json(res, 200, { ok: true, ...getRoomInfo() });
-  }
-
-  // ── REST API: Room invite (for sharing via Nostr) ────────────
-  if (url === "/api/invite" && method === "GET") {
-    const info = getRoomInfo();
-    return json(res, 200, {
-      ok: true,
-      invite: {
-        roomId: info.roomId,
-        name: info.name,
-        relays: nostr.getRelays(),
-        channelId: nostr.getChannelId(),
-        agents: info.agents,
-        maxAgents: info.maxAgents,
-      },
-    });
-  }
-
-  // ── REST API: Moltbook feed (proxy to moltbook.com) ────────
-  if (url.startsWith("/api/moltbook/feed") && method === "GET") {
-    try {
-      const feedUrl = "https://www.moltbook.com/posts?sort=hot&limit=20";
-      const headers: Record<string, string> = { "Accept": "application/json" };
-      const moltbookKey = process.env.MOLTBOOK_API_KEY;
-      if (moltbookKey) {
-        headers["Authorization"] = `Bearer ${moltbookKey}`;
-      }
-      const upstream = await fetch(feedUrl, { headers, signal: AbortSignal.timeout(8000) });
-      if (!upstream.ok) {
-        return json(res, 502, { ok: false, error: `moltbook.com returned ${upstream.status}` });
-      }
-      const data = await upstream.json();
-      return json(res, 200, { ok: true, posts: data });
-    } catch (err) {
-      return json(res, 502, { ok: false, error: `Could not reach moltbook.com: ${String(err)}` });
-    }
-  }
-
-  // ── REST API: Clawhub marketplace proxy (clawhub.ai) ────────
-  if (url.startsWith("/api/clawhub/browse") && method === "GET") {
-    try {
-      const reqUrl = new URL(req.url ?? "/", "http://localhost");
-      const sort = reqUrl.searchParams.get("sort") || "trending";
-      const query = reqUrl.searchParams.get("q") || "";
-      const limit = reqUrl.searchParams.get("limit") || "50";
-
-      let upstream: string;
-      if (query) {
-        upstream = `https://clawhub.ai/api/v1/search?q=${encodeURIComponent(query)}&limit=${limit}`;
-      } else {
-        upstream = `https://clawhub.ai/api/v1/skills?sort=${encodeURIComponent(sort)}&limit=${limit}`;
-      }
-
-      const response = await fetch(upstream, {
-        headers: { "Accept": "application/json" },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!response.ok) {
-        return json(res, 502, { ok: false, error: `clawhub.ai returned ${response.status}` });
-      }
-      const data = await response.json();
-      return json(res, 200, { ok: true, data });
-    } catch (err) {
-      return json(res, 502, { ok: false, error: `Could not reach clawhub.ai: ${String(err)}` });
-    }
-  }
-
-  // ── REST API: Clawhub (local plugins) ──────────────────────
-  if (url === "/api/clawhub/skills" && method === "GET") {
-    return json(res, 200, { ok: true, skills: clawhub.list() });
-  }
-
-  if (url === "/api/clawhub/skills" && method === "POST") {
-    try {
-      const body = (await readBody(req)) as {
-        id?: string; name?: string; description?: string;
-        author?: string; version?: string; tags?: string[];
-      };
-      if (!body.id || !body.name) {
-        return json(res, 400, { ok: false, error: "id and name required" });
-      }
-      const skill = clawhub.publish({
-        id: body.id,
-        name: body.name,
-        description: body.description ?? "",
-        author: body.author ?? "unknown",
-        version: body.version ?? "0.1.0",
-        tags: body.tags ?? [],
-      });
-      return json(res, 201, { ok: true, skill });
-    } catch (err) {
-      return json(res, 400, { ok: false, error: String(err) });
-    }
-  }
-
-  if (url === "/api/clawhub/install" && method === "POST") {
-    try {
-      const body = (await readBody(req)) as { skillId?: string };
-      if (!body.skillId) {
-        return json(res, 400, { ok: false, error: "skillId required" });
-      }
-      const record = clawhub.install(body.skillId);
-      if (!record) return json(res, 404, { ok: false, error: "skill not found" });
-      return json(res, 200, { ok: true, installed: record });
-    } catch (err) {
-      return json(res, 400, { ok: false, error: String(err) });
-    }
-  }
-
-  if (url === "/api/clawhub/uninstall" && method === "POST") {
-    try {
-      const body = (await readBody(req)) as { skillId?: string };
-      if (!body.skillId) {
-        return json(res, 400, { ok: false, error: "skillId required" });
-      }
-      const ok = clawhub.uninstall(body.skillId);
-      return json(res, ok ? 200 : 404, { ok });
-    } catch (err) {
-      return json(res, 400, { ok: false, error: String(err) });
-    }
-  }
-
-  if (url === "/api/clawhub/installed" && method === "GET") {
-    return json(res, 200, { ok: true, installed: clawhub.getInstalled() });
-  }
-
-  // ── IPC JSON API (agent commands — go through command queue) ─
+  // IPC JSON API
   if (method === "POST" && (url === "/" || url === "/ipc")) {
     try {
       const parsed = await readBody(req);
-      const result = await handleCommand(parsed as Record<string, unknown>);
+      const result = await handleIpcCommand(parsed as Record<string, unknown>, ctx);
       return json(res, 200, result);
     } catch (err) {
       return json(res, 400, { error: String(err) });
     }
-  }
-
-  // ── Server info ─────────────────────────────────────────────
-  if (method === "GET" && url === "/health") {
-    return json(res, 200, {
-      status: "ok",
-      roomId: config.roomId,
-      agents: registry.getOnline().length,
-      clients: clientManager.size,
-      tick: gameLoop.currentTick,
-      tickRate: TICK_RATE,
-    });
   }
 
   json(res, 404, { error: "Not found" });
@@ -283,7 +99,6 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 
 new WSBridge(server, clientManager, {
   getProfiles: () => {
-    // Only return profiles of agents currently in the world (with positions)
     const activeIds = state.getActiveAgentIds();
     return registry.getAll().filter((p) => activeIds.has(p.agentId));
   },
@@ -291,326 +106,17 @@ new WSBridge(server, clientManager, {
   getRoomInfo,
 });
 
-// ── Nostr integration (for room sharing via relay) ─────────────
+// ── Nostr integration ──────────────────────────────────────────
 
 nostr.setAgentValidator((agentId: string) => registry.get(agentId) !== undefined);
-nostr.setMessageHandler((msg: WorldMessage) => {
-  commandQueue.enqueue(msg);
-});
-
-// ── IPC command handler ────────────────────────────────────────
-
-async function handleCommand(parsed: Record<string, unknown>): Promise<unknown> {
-  const { command, args } = parsed as {
-    command: string;
-    args?: Record<string, unknown>;
-  };
-
-  // Commands that require a registered agentId
-  const agentCommands = new Set([
-    "world-move", "world-action", "world-chat", "world-whisper", "world-emote", "world-leave",
-  ]);
-  if (agentCommands.has(command)) {
-    const agentId = (args as { agentId?: string })?.agentId;
-    if (!agentId || !registry.get(agentId)) {
-      throw new Error("Unknown or unregistered agentId");
-    }
-  }
-
-  switch (command) {
-    case "register": {
-      const onlineCount = state.getActiveAgentIds().size;
-      if (onlineCount >= config.maxAgents) {
-        return { ok: false, error: `Room is full (${config.maxAgents} max)` };
-      }
-
-      const a = args as {
-        agentId: string;
-        name?: string;
-        pubkey?: string;
-        bio?: string;
-        capabilities?: string[];
-        color?: string;
-        skills?: AgentSkillDeclaration[];
-      };
-      if (!a?.agentId) throw new Error("agentId required");
-      const profile = registry.register(a);
-
-      const joinMsg: JoinMessage = {
-        worldType: "join",
-        agentId: profile.agentId,
-        name: profile.name,
-        color: profile.color,
-        bio: profile.bio,
-        capabilities: profile.capabilities,
-        skills: profile.skills,
-        timestamp: Date.now(),
-      };
-      commandQueue.enqueue(joinMsg);
-      
-      // Ensure agent has a default position (fixes agents not appearing after page reload)
-      // The join handler in world-state.ts will only set position if not exists,
-      // so we also enqueue a position message to guarantee visibility
-      if (!state.getPosition(profile.agentId)) {
-        const posMsg: PositionMessage = {
-          worldType: "position",
-          agentId: profile.agentId,
-          x: 0 + (Math.random() - 0.5) * 10,  // Near entrance (0, 20)
-          y: 0,
-          z: 18 + (Math.random() - 0.5) * 4,
-          rotation: Math.PI,  // Facing into the room
-          timestamp: Date.now(),
-        };
-        commandQueue.enqueue(posMsg);
-      }
-
-      const previewUrl = `http://localhost:${process.env.VITE_PORT ?? "3000"}/?agent=${encodeURIComponent(profile.agentId)}`;
-      return {
-        ok: true,
-        profile,
-        previewUrl,
-        ipcUrl: `http://127.0.0.1:${config.port}/ipc`,
-      };
-    }
-
-    case "profiles":
-      return { ok: true, profiles: registry.getAll() };
-
-    case "profile": {
-      const agentId = (args as { agentId?: string })?.agentId;
-      if (!agentId) throw new Error("agentId required");
-      const profile = registry.get(agentId);
-      return profile ? { ok: true, profile } : { ok: false, error: "not found" };
-    }
-
-    case "world-move": {
-      const a = args as { agentId: string; x: number; y: number; z: number; rotation?: number };
-      if (!a?.agentId) throw new Error("agentId required");
-      const x = Number(a.x ?? 0);
-      const y = Number(a.y ?? 0);
-      const z = Number(a.z ?? 0);
-      const rotation = Number(a.rotation ?? 0);
-      if (!isFinite(x) || !isFinite(y) || !isFinite(z) || !isFinite(rotation)) {
-        throw new Error("x, y, z, rotation must be finite numbers");
-      }
-      const msg: WorldMessage = {
-        worldType: "position",
-        agentId: a.agentId,
-        x,
-        y,
-        z,
-        rotation,
-        timestamp: Date.now(),
-      };
-      const result = commandQueue.enqueue(msg);
-      if (!result.ok) return { ok: false, error: result.reason };
-      return { ok: true };
-    }
-
-    case "world-action": {
-      const a = args as { agentId: string; action: string; targetAgentId?: string };
-      if (!a?.agentId) throw new Error("agentId required");
-      const msg: WorldMessage = {
-        worldType: "action",
-        agentId: a.agentId,
-        action: (a.action ?? "idle") as "walk" | "idle" | "wave" | "pinch" | "talk" | "dance" | "backflip" | "spin",
-        targetAgentId: a.targetAgentId,
-        timestamp: Date.now(),
-      };
-      commandQueue.enqueue(msg);
-      return { ok: true };
-    }
-
-    case "world-chat": {
-      const a = args as { agentId: string; text: string };
-      if (!a?.agentId || !a?.text) throw new Error("agentId and text required");
-      const msg: WorldMessage = {
-        worldType: "chat",
-        agentId: a.agentId,
-        text: a.text.slice(0, 500),
-        timestamp: Date.now(),
-      };
-      commandQueue.enqueue(msg);
-      return { ok: true };
-    }
-
-    case "world-whisper": {
-      const a = args as { agentId: string; targetId: string; text: string };
-      if (!a?.agentId || !a?.targetId || !a?.text) throw new Error("agentId, targetId, and text required");
-      const msg: WorldMessage = {
-        worldType: "whisper",
-        agentId: a.agentId,
-        targetId: a.targetId,
-        text: a.text.slice(0, 500),
-        timestamp: Date.now(),
-      };
-      commandQueue.enqueue(msg);
-      return { ok: true };
-    }
-
-    case "world-emote": {
-      const a = args as { agentId: string; emote: string };
-      if (!a?.agentId) throw new Error("agentId required");
-      const msg: WorldMessage = {
-        worldType: "emote",
-        agentId: a.agentId,
-        emote: (a.emote ?? "happy") as "happy" | "thinking" | "surprised" | "laugh",
-        timestamp: Date.now(),
-      };
-      commandQueue.enqueue(msg);
-      return { ok: true };
-    }
-
-    case "world-leave": {
-      const a = args as { agentId: string };
-      if (!a?.agentId) throw new Error("agentId required");
-      const msg: WorldMessage = {
-        worldType: "leave",
-        agentId: a.agentId,
-        timestamp: Date.now(),
-      };
-      commandQueue.enqueue(msg);
-      return { ok: true };
-    }
-
-    // ── Clawhub IPC commands ──────────────────────────────────
-    case "clawhub-list":
-      return { ok: true, skills: clawhub.list() };
-
-    case "clawhub-publish": {
-      const a = args as {
-        id?: string; name?: string; description?: string;
-        author?: string; version?: string; tags?: string[];
-      };
-      if (!a?.id || !a?.name) throw new Error("id and name required");
-      const skill = clawhub.publish({
-        id: a.id,
-        name: a.name,
-        description: a.description ?? "",
-        author: a.author ?? "unknown",
-        version: a.version ?? "0.1.0",
-        tags: a.tags ?? [],
-      });
-      return { ok: true, skill };
-    }
-
-    case "clawhub-install": {
-      const a = args as { skillId?: string };
-      if (!a?.skillId) throw new Error("skillId required");
-      const record = clawhub.install(a.skillId);
-      if (!record) throw new Error("skill not found");
-      return { ok: true, installed: record };
-    }
-
-    case "clawhub-uninstall": {
-      const a = args as { skillId?: string };
-      if (!a?.skillId) throw new Error("skillId required");
-      const ok = clawhub.uninstall(a.skillId);
-      return { ok };
-    }
-
-    // ── Room management IPC commands ────────────────────────
-    case "room-info":
-      return { ok: true, ...getRoomInfo() };
-
-    case "room-events": {
-      const a = args as { since?: number; limit?: number };
-      const since = Number(a?.since ?? 0);
-      const limit = Math.min(Number(a?.limit ?? 50), 200);
-      return { ok: true, events: eventStore.query(since, limit) };
-    }
-
-    case "room-whispers": {
-      const wa = args as { agent?: string; since?: number; limit?: number };
-      if (!wa?.agent) return { ok: false, error: "agent param required" };
-      const since = Number(wa.since ?? 0);
-      const limit = Math.min(Number(wa.limit ?? 20), 100);
-      const allEvents = eventStore.query(since, 500);
-      const whispers = allEvents
-        .filter(e => e.worldType === "whisper" && 
-          ((e as any).targetId === wa.agent || e.agentId === wa.agent))
-        .slice(-limit);
-      return { ok: true, agent: wa.agent, whispers, count: whispers.length };
-    }
-
-    case "room-mentions": {
-      const ma = args as { agent?: string; since?: number; limit?: number };
-      if (!ma?.agent) return { ok: false, error: "agent param required" };
-      const since = Number(ma.since ?? 0);
-      const limit = Math.min(Number(ma.limit ?? 20), 100);
-      const pattern = new RegExp(`@${ma.agent}\\b`, "i");
-      const allEvents = eventStore.query(since, 500);
-      const mentions = allEvents
-        .filter(e => e.worldType === "chat" && e.agentId !== ma.agent && pattern.test((e as any).text ?? ""))
-        .slice(-limit);
-      return { ok: true, agent: ma.agent, mentions, count: mentions.length };
-    }
-
-    case "room-invite": {
-      const info = getRoomInfo();
-      return {
-        ok: true,
-        invite: {
-          roomId: info.roomId,
-          name: info.name,
-          relays: nostr.getRelays(),
-          channelId: nostr.getChannelId(),
-          agents: info.agents,
-          maxAgents: info.maxAgents,
-        },
-      };
-    }
-
-    case "room-skills": {
-      const allProfiles = registry.getAll();
-      const directory: Record<string, { agentId: string; agentName: string; skill: AgentSkillDeclaration }[]> = {};
-      for (const p of allProfiles) {
-        for (const skill of p.skills ?? []) {
-          if (!directory[skill.skillId]) directory[skill.skillId] = [];
-          directory[skill.skillId].push({ agentId: p.agentId, agentName: p.name, skill });
-        }
-      }
-      return { ok: true, directory };
-    }
-
-    case "describe": {
-      const skillPath = resolve(import.meta.dirname, "../skills/world-room/skill.json");
-      const schema = JSON.parse(readFileSync(skillPath, "utf-8"));
-      return { ok: true, skill: schema };
-    }
-
-    case "open-preview": {
-      const a = args as { agentId?: string };
-      const vitePort = process.env.VITE_PORT ?? "3000";
-      const serverUrl = `http://127.0.0.1:${config.port}`;
-      const url = a?.agentId
-        ? `http://localhost:${vitePort}/?agent=${encodeURIComponent(a.agentId)}&server=${encodeURIComponent(serverUrl)}`
-        : `http://localhost:${vitePort}/?server=${encodeURIComponent(serverUrl)}`;
-
-      const { execFile } = await import("node:child_process");
-      const cmd = process.platform === "darwin" ? "open"
-        : process.platform === "win32" ? "start"
-        : "xdg-open";
-      execFile(cmd, [url], (err) => {
-        if (err) console.warn("[server] Failed to open browser:", err.message);
-      });
-
-      return { ok: true, url };
-    }
-
-    default:
-      throw new Error(`Unknown command: ${command}`);
-  }
-}
+nostr.setMessageHandler((msg: WorldMessage) => { commandQueue.enqueue(msg); });
 
 // ── Startup ────────────────────────────────────────────────────
 
 async function main() {
   console.log("🏢 OpenClaw Office starting...");
   console.log(`[room] Room ID: ${config.roomId} | Name: "${config.roomName}"`);
-  if (config.roomDescription) {
-    console.log(`[room] Description: ${config.roomDescription}`);
-  }
+  if (config.roomDescription) console.log(`[room] Description: ${config.roomDescription}`);
   console.log(`[room] Max agents: ${config.maxAgents} | Bind: ${config.host}:${config.port}`);
   console.log(`[engine] Tick rate: ${TICK_RATE}Hz | AOI radius: 40 units`);
 
@@ -626,9 +132,9 @@ async function main() {
 
   gameLoop.start();
 
-  // ── Heartbeat scanner: auto-idle & auto-kick inactive agents ──
-  const IDLE_TIMEOUT_MS = 30 * 60 * 1000;   // 30 min → idle
-  const KICK_TIMEOUT_MS = 120 * 60 * 1000;  // 2 hr → kick
+  // ── Heartbeat scanner: auto-idle & auto-kick ──────────────
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+  const KICK_TIMEOUT_MS = 120 * 60 * 1000;
 
   setInterval(() => {
     const now = Date.now();
@@ -637,40 +143,24 @@ async function main() {
       const elapsed = now - profile.lastSeen;
 
       if (elapsed > KICK_TIMEOUT_MS) {
-        // Auto-kick: remove from world
         console.log(`[heartbeat] ⏰ Kicking ${profile.agentId} (inactive ${Math.round(elapsed / 60000)}min)`);
-        const leaveMsg: WorldMessage = {
-          worldType: "leave",
-          agentId: profile.agentId,
-          timestamp: now,
-        };
-        commandQueue.enqueue(leaveMsg);
+        commandQueue.enqueue({ worldType: "leave", agentId: profile.agentId, timestamp: now });
       } else if (elapsed > IDLE_TIMEOUT_MS) {
-        // Auto-idle
-        const actionMsg: WorldMessage = {
-          worldType: "action",
-          agentId: profile.agentId,
-          action: "idle",
-          timestamp: now,
-        };
-        commandQueue.enqueue(actionMsg);
+        commandQueue.enqueue({ worldType: "action", agentId: profile.agentId, action: "idle", timestamp: now });
       }
     }
-  }, 60_000); // Check every 1 minute
+  }, 60_000);
 
   console.log(`[heartbeat] Scanner active: idle=${IDLE_TIMEOUT_MS / 60000}min, kick=${KICK_TIMEOUT_MS / 60000}min`);
 }
 
-main().catch((err) => {
-  console.error("Fatal:", err);
-  process.exit(1);
-});
+main().catch((err) => { console.error("Fatal:", err); process.exit(1); });
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, () => {
     console.log(`\n[server] ${sig} received, shutting down...`);
     gameLoop.stop();
-    eventStore.close(); // flush events to disk
+    eventStore.close();
     nostr.close();
     server.close();
     process.exit(0);
