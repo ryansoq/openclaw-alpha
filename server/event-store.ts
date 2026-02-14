@@ -9,7 +9,7 @@ const EVENTS_FILE = join(DATA_DIR, "events.jsonl");
 const MAX_PERSISTED = 2000;
 
 /** Batch write interval (ms) */
-const FLUSH_INTERVAL = 10_000;
+const FLUSH_INTERVAL = 30_000;
 
 /**
  * Append-only event store. Keeps recent events in memory + flushes to JSONL file.
