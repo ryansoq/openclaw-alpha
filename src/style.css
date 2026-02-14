@@ -1264,6 +1264,78 @@ body {
   border-radius: 4px;
 }
 
+/* ── Telegram Login + Chat Input ───────────────────────────── */
+
+.tg-login-wrapper {
+  padding: 6px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tg-login-btn {
+  padding: 6px 14px;
+  border: 1px solid rgba(88, 86, 214, 0.3);
+  border-radius: 8px;
+  background: rgba(88, 86, 214, 0.08);
+  color: #5856d6;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tg-login-btn:hover {
+  background: rgba(88, 86, 214, 0.15);
+}
+
+.tg-login-info {
+  font-size: 11px;
+  color: #27ae60;
+  font-weight: 500;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 6px;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  background: #fff;
+}
+
+.chat-input:focus {
+  border-color: #5856d6;
+}
+
+.chat-send-btn {
+  padding: 6px 12px;
+  border: 1px solid rgba(88, 86, 214, 0.3);
+  border-radius: 8px;
+  background: rgba(88, 86, 214, 0.08);
+  color: #5856d6;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-send-btn:hover {
+  background: rgba(88, 86, 214, 0.15);
+}
+
 /* ── Overlay Toolbar ───────────────────────────────────────── */
 
 .overlay-toolbar {

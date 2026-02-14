@@ -8,6 +8,7 @@ import { setupChatLog } from "./ui/chat-log.js";
 import { setupProfilePanel } from "./ui/profile-panel.js";
 import { setupBuildingPanel } from "./ui/building-panel.js";
 import { setupRoomInfoBar } from "./ui/room-info-bar.js";
+import { setupTelegramLogin } from "./ui/telegram-login.js";
 import * as THREE from "three";
 import type { AgentProfile, AgentState, WorldMessage, RoomInfoMessage } from "../server/types.js";
 
@@ -39,6 +40,26 @@ const roomInfoBar = setupRoomInfoBar();
 
 const overlay = setupOverlay();
 const chatLog = setupChatLog();
+
+// ── Telegram Login ─────────────────────────────────────────────
+
+setupTelegramLogin(chatLog.getContainer(), (auth) => {
+  chatLog.addSystem(`${auth.name} logged in`);
+  // Show chat input after login
+  chatLog.showInput(async (text) => {
+    const apiUrl = serverBaseUrl ? `${serverBaseUrl}/ipc` : "/ipc";
+    await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        command: "world-chat",
+        token: auth.token,
+        args: { agentId: auth.agentId, text },
+      }),
+    });
+  });
+});
+
 const profilePanel = setupProfilePanel((agentId: string) => {
   // Click callback → focus camera on lobster
   const pos = lobsterManager.getPosition(agentId);

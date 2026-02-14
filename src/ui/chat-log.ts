@@ -1,6 +1,10 @@
-interface ChatLogAPI {
+export interface ChatLogAPI {
   addMessage(agentId: string, text: string, timestamp?: number): void;
   addSystem(text: string): void;
+  /** Get the container element (for adding login UI) */
+  getContainer(): HTMLElement;
+  /** Show the chat input box */
+  showInput(onSend: (text: string) => void): void;
 }
 
 /**
@@ -101,6 +105,35 @@ export function setupChatLog(): ChatLogAPI {
   }
 
   return {
+    getContainer() { return container; },
+    showInput(onSend: (text: string) => void) {
+      // Don't add twice
+      if (container.querySelector(".chat-input-row")) return;
+      const row = document.createElement("div");
+      row.className = "chat-input-row";
+      const input = document.createElement("input");
+      input.className = "chat-input";
+      input.type = "text";
+      input.placeholder = "Type a message...";
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && input.value.trim()) {
+          onSend(input.value.trim());
+          input.value = "";
+        }
+      });
+      const sendBtn = document.createElement("button");
+      sendBtn.className = "chat-send-btn";
+      sendBtn.textContent = "Send";
+      sendBtn.addEventListener("click", () => {
+        if (input.value.trim()) {
+          onSend(input.value.trim());
+          input.value = "";
+        }
+      });
+      row.appendChild(input);
+      row.appendChild(sendBtn);
+      container.appendChild(row);
+    },
     addMessage(agentId: string, text: string, timestamp?: number) {
       const time = new Date(timestamp ?? Date.now()).toLocaleTimeString([], {
         hour: "2-digit",
