@@ -127,6 +127,11 @@ export function setupAgentChat(serverUrl: string): AgentChatAPI {
         const isMe = msg.from === currentMyId;
         bubble.className = `agent-chat-bubble ${isMe ? "agent-chat-mine" : "agent-chat-theirs"}`;
 
+        const senderEl = document.createElement("div");
+        senderEl.className = "agent-chat-sender";
+        senderEl.textContent = msg.from;
+        bubble.appendChild(senderEl);
+
         const textEl = document.createElement("div");
         textEl.className = "agent-chat-text";
         textEl.textContent = msg.text;
