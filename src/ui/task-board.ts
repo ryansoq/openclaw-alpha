@@ -48,26 +48,7 @@ export function handleTaskBoardMessage(entries: TaskEntry[]) {
 }
 
 function render() {
-  const el = document.getElementById("whiteboard-tasks");
-  if (!el) return;
-
-  if (currentEntries.length === 0) {
-    el.innerHTML = `<div class="wb-empty">No active tasks</div>`;
-    return;
-  }
-
-  const rows = currentEntries.slice(0, 8).map((e) => {
-    const color = STATUS_COLORS[e.status] ?? STATUS_COLORS.idle;
-    const age = timeSince(e.updatedAt);
-    return `<div class="wb-row">
-      <span class="wb-emoji">${e.emoji}</span>
-      <span class="wb-name" style="color:${color}">${esc(e.agentName)}</span>
-      <span class="wb-task">${esc(e.task)}</span>
-      <span class="wb-age">${age}</span>
-    </div>`;
-  });
-
-  el.innerHTML = `<div class="wb-title">📋 Task Board</div>${rows.join("")}`;
+  // Task board 3D rendering removed — PR Board overlay is now used instead
 }
 
 function timeSince(ts: number): string {

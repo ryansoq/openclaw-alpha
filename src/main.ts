@@ -307,7 +307,7 @@ renderer.domElement.addEventListener("click", (event: MouseEvent) => {
         buildingPanel.showWorlds();
         return;
       }
-      if (obj.userData.buildingId === "pr-board") {
+      if (obj.userData.buildingId === "whiteboard") {
         prBoard.show();
         return;
       }
