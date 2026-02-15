@@ -353,11 +353,23 @@ export function createBuildings(scene: THREE.Scene): {
   bookshelfLeft.position.set(-20, 0, -18);
   scene.add(bookshelfLeft);
   obstacles.push({ x: -20, z: -18, radius: 1.5 });
+  buildings.push({
+    id: "bookshelf-left",
+    name: "📚 Bookshelf (Left)",
+    position: new THREE.Vector3(-20, 0, -18),
+    mesh: bookshelfLeft,
+  });
 
   const bookshelfRight = createBookshelf();
   bookshelfRight.position.set(20, 0, -18);
   scene.add(bookshelfRight);
   obstacles.push({ x: 20, z: -18, radius: 1.5 });
+  buildings.push({
+    id: "bookshelf-right",
+    name: "📚 Bookshelf (Right)",
+    position: new THREE.Vector3(20, 0, -18),
+    mesh: bookshelfRight,
+  });
 
   // 📋 白板 (後方牆壁前)
   const whiteboard = createWhiteboard();
