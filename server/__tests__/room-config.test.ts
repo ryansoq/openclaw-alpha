@@ -26,7 +26,7 @@ describe("loadRoomConfig", () => {
   });
 
   it.each([
-    ["roomName", "Lobster Room"],
+    ["roomName", "Agents Room"],
     ["roomDescription", ""],
     ["host", "127.0.0.1"],
     ["port", 18800],

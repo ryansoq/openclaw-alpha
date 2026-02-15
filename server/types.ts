@@ -74,6 +74,7 @@ export interface EmoteMessage {
 export interface ChatMessage {
   worldType: "chat";
   agentId: string;
+  name?: string;
   text: string;
   timestamp: number;
 }
