@@ -39,6 +39,13 @@ const LOBSTER_RADIUS = 1.8;
 const AVOIDANCE_LOOKAHEAD = 4;
 const AVOIDANCE_FORCE = 6;
 
+// Proximity greeting constants
+const GREETING_DISTANCE = 5; // distance to trigger greeting
+const GREETING_COOLDOWN = 30000; // ms before same pair can greet again
+const GREETING_WAVE_DURATION = 2500; // ms to wave
+
+export type GreetingCallback = (agentA: string, agentB: string) => void;
+
 export class LobsterManager {
   private scene: THREE.Scene;
   private lobsters = new Map<string, LobsterEntry>();
@@ -46,9 +53,19 @@ export class LobsterManager {
   private pointer = new THREE.Vector2();
   private obstacles: Obstacle[] = [];
 
+  // Proximity greetings
+  private greetingCooldowns = new Map<string, number>(); // "a|b" → timestamp
+  private activeGreetings = new Map<string, number>(); // agentId → end time
+  private onGreeting: GreetingCallback | null = null;
+
   constructor(scene: THREE.Scene, obstacles?: Obstacle[]) {
     this.scene = scene;
     this.obstacles = obstacles ?? [];
+  }
+
+  /** Register a callback for when agents greet each other */
+  setGreetingCallback(cb: GreetingCallback): void {
+    this.onGreeting = cb;
   }
 
   /** Add or update a lobster from snapshot / join */
@@ -324,7 +341,85 @@ export class LobsterManager {
       }
     }
 
-    // Particles disabled
+    // Proximity greetings
+    this.checkProximityGreetings();
+  }
+
+  /** Check if nearby agents should greet each other */
+  private checkProximityGreetings(): void {
+    const now = Date.now();
+    const entries = Array.from(this.lobsters.entries());
+
+    // Clear expired active greetings and restore idle
+    for (const [agentId, endTime] of this.activeGreetings) {
+      if (now >= endTime) {
+        this.activeGreetings.delete(agentId);
+        const entry = this.lobsters.get(agentId);
+        if (entry && entry.action === "wave") {
+          entry.action = "idle";
+        }
+      }
+    }
+
+    // Check each pair
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) {
+        const [idA, a] = entries[i];
+        const [idB, b] = entries[j];
+
+        const dx = a.current.x - b.current.x;
+        const dz = a.current.z - b.current.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist > GREETING_DISTANCE) continue;
+
+        // Both must be idle (at their target) and not already greeting
+        const distA = Math.sqrt(
+          (a.target.x - a.current.x) ** 2 + (a.target.z - a.current.z) ** 2
+        );
+        const distB = Math.sqrt(
+          (b.target.x - b.current.x) ** 2 + (b.target.z - b.current.z) ** 2
+        );
+        if (distA > 0.5 || distB > 0.5) continue;
+        if (this.activeGreetings.has(idA) || this.activeGreetings.has(idB)) continue;
+
+        // Check cooldown
+        const pairKey = idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`;
+        const lastGreet = this.greetingCooldowns.get(pairKey) ?? 0;
+        if (now - lastGreet < GREETING_COOLDOWN) continue;
+
+        // Trigger greeting!
+        this.greetingCooldowns.set(pairKey, now);
+        const endTime = now + GREETING_WAVE_DURATION;
+        this.activeGreetings.set(idA, endTime);
+        this.activeGreetings.set(idB, endTime);
+        a.action = "wave";
+        b.action = "wave";
+
+        // Make them face each other
+        a.target.rotation = Math.atan2(
+          b.current.x - a.current.x,
+          b.current.z - a.current.z
+        );
+        b.target.rotation = Math.atan2(
+          a.current.x - b.current.x,
+          a.current.z - b.current.z
+        );
+
+        if (this.onGreeting) {
+          this.onGreeting(idA, idB);
+        }
+      }
+    }
+
+    // Clean old cooldowns (prevent memory leak)
+    if (this.greetingCooldowns.size > 100) {
+      for (const [key, time] of this.greetingCooldowns) {
+        if (now - time > GREETING_COOLDOWN * 2) {
+          this.greetingCooldowns.delete(key);
+        }
+      }
+    }
   }
 
   /** Check if a position would collide with any obstacle or another lobster */

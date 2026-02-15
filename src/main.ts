@@ -41,6 +41,14 @@ const effects = new EffectsManager(scene, camera);
 const buildingPanel = setupBuildingPanel(serverParam);
 const roomInfoBar = setupRoomInfoBar();
 
+// Proximity greetings: show emote when agents meet
+const greetingEmojis = ["👋", "😊", "🙌", "✨", "🤝"];
+lobsterManager.setGreetingCallback((agentA, agentB) => {
+  const emoji = greetingEmojis[Math.floor(Math.random() * greetingEmojis.length)];
+  effects.showEmote(agentA, emoji);
+  effects.showEmote(agentB, emoji);
+});
+
 // ── UI ─────────────────────────────────────────────────────────
 
 const overlay = setupOverlay();

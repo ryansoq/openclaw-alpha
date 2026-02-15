@@ -147,7 +147,7 @@ export class EffectsManager {
 
     const el = document.createElement("div");
     el.className = "emote-bubble";
-    el.textContent = emojiMap[emote] ?? "\u{1F4AC}";
+    el.textContent = emojiMap[emote] ?? emote;
     deferShow(el);
 
     const obj = new CSS2DObject(el);
