@@ -89,7 +89,7 @@ export class TxListener {
     return new Promise((resolve, reject) => {
       execFile(
         "python3",
-        [GET_TX_SCRIPT, address, "--network", "testnet", "--limit", "10"],
+        [GET_TX_SCRIPT, address, "--network", "testnet", "--json"],
         { timeout: 15000 },
         (err, stdout, stderr) => {
           if (err) return reject(err);
