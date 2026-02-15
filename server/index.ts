@@ -150,7 +150,7 @@ nostr.setMessageHandler((msg: WorldMessage) => { commandQueue.enqueue(msg); });
 // ── Startup ────────────────────────────────────────────────────
 
 async function main() {
-  console.log("🏢 OpenClaw Office starting...");
+  console.log("🏢 OpenClaw Online starting...");
   console.log(`[room] Room ID: ${config.roomId} | Name: "${config.roomName}"`);
   if (config.roomDescription) console.log(`[room] Description: ${config.roomDescription}`);
   console.log(`[room] Max agents: ${config.maxAgents} | Bind: ${config.host}:${config.port}`);

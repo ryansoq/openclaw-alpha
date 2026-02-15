@@ -26,7 +26,7 @@ export function setupOverlay(): OverlayAPI {
 
   const titleEl = document.createElement("span");
   titleEl.className = "overlay-title";
-  titleEl.textContent = "OpenClaw Office";
+  titleEl.textContent = "OpenClaw Online";
   header.appendChild(titleEl);
 
   const toggleEl = document.createElement("span");
