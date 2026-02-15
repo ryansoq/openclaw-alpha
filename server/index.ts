@@ -46,9 +46,21 @@ const commandQueue = new CommandQueue();
 const clientManager = new ClientManager();
 
 commandQueue.setObstacles([
-  { x: -20, z: -20, radius: 4 },
-  { x: 22, z: -22, radius: 6 },
-  { x: 0, z: -35, radius: 5 },
+  { x: -22, z: 0, radius: 2 },     // moltbook
+  { x: 22, z: 0, radius: 3 },      // clawhub
+  { x: 0, z: -22, radius: 3 },     // portal
+  { x: -6, z: -10, radius: 0.5 },  // partition
+  { x: 6, z: -10, radius: 0.5 },   // partition
+  { x: -12, z: -10, radius: 2 },   // nami desk
+  { x: 12, z: -10, radius: 2 },    // colleague desk
+  { x: 0, z: 0, radius: 3 },       // meeting table
+  { x: -12, z: 12, radius: 3 },    // sofa
+  { x: -12, z: 14, radius: 1 },    // coffee table
+  { x: -12, z: 17, radius: 1.5 },  // bookshelf
+  { x: 12, z: 12, radius: 2.5 },   // tea counter
+  { x: -20, z: -18, radius: 1.5 }, // bookshelf left
+  { x: 20, z: -18, radius: 1.5 },  // bookshelf right
+  { x: 0, z: -18, radius: 2 },     // whiteboard
 ]);
 
 const gameLoop = new GameLoop(state, spatialGrid, commandQueue, clientManager, nostr, eventStore);
