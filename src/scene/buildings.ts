@@ -348,6 +348,31 @@ export function createBuildings(scene: THREE.Scene): {
   });
   obstacles.push({ x: 12, z: 12, radius: 2.5 });
 
+  // 📚 書架 (後方牆壁邊，左右各一)
+  const bookshelfLeft = createBookshelf();
+  bookshelfLeft.position.set(-20, 0, -18);
+  scene.add(bookshelfLeft);
+  obstacles.push({ x: -20, z: -18, radius: 1.5 });
+  buildings.push({
+    id: "bookshelf-left",
+    name: "📚 Bookshelf (Left)",
+    position: new THREE.Vector3(-20, 0, -18),
+    mesh: bookshelfLeft,
+    obstacleRadius: 1.5,
+  });
+
+  const bookshelfRight = createBookshelf();
+  bookshelfRight.position.set(20, 0, -18);
+  scene.add(bookshelfRight);
+  obstacles.push({ x: 20, z: -18, radius: 1.5 });
+  buildings.push({
+    id: "bookshelf-right",
+    name: "📚 Bookshelf (Right)",
+    position: new THREE.Vector3(20, 0, -18),
+    mesh: bookshelfRight,
+    obstacleRadius: 1.5,
+  });
+
   // 📋 白板 (後方牆壁前)
   const whiteboard = createWhiteboard();
   whiteboard.position.set(0, 0, -18);
@@ -416,17 +441,52 @@ function createComputerDesk(accentColor: string = "#4fc3f7"): THREE.Group {
     group.add(leg);
   }
 
-  // Monitor
-  const monitor = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.05), screenMat);
-  monitor.position.set(0, 1.8, 0);
+  // Monitor stand (vertical pole)
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.3, metalness: 0.5 });
+  const standPole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.45, 0.08), metalMat);
+  standPole.position.set(0, 1.5, 0);
+  standPole.userData.buildingId = "computer-desk";
+  group.add(standPole);
+
+  // Monitor stand base (flat disc)
+  const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.04, 12), metalMat);
+  standBase.position.set(0, 1.3, 0);
+  standBase.userData.buildingId = "computer-desk";
+  group.add(standBase);
+
+  // Monitor (thin panel)
+  const monitor = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 0.05), screenMat);
+  monitor.position.set(0, 2.2, 0);
+  monitor.castShadow = true;
   monitor.userData.buildingId = "computer-desk";
   group.add(monitor);
 
+  // Monitor bezel (slightly larger frame behind screen)
+  const bezelMat = new THREE.MeshStandardMaterial({ color: 0x2c2c2c, roughness: 0.4 });
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.0, 0.04), bezelMat);
+  bezel.position.set(0, 2.2, -0.03);
+  bezel.userData.buildingId = "computer-desk";
+  group.add(bezel);
+
   // Screen glow
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), screenGlow);
-  screen.position.set(0, 1.8, 0.03);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.8), screenGlow);
+  screen.position.set(0, 2.2, 0.03);
   screen.userData.buildingId = "computer-desk";
   group.add(screen);
+
+  // Keyboard (small flat box on desk)
+  const kbMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7 });
+  const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.35), kbMat);
+  keyboard.position.set(0, 1.3, 0.55);
+  keyboard.userData.buildingId = "computer-desk";
+  group.add(keyboard);
+
+  // Keyboard keys hint (lighter strip on top)
+  const keysMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6 });
+  const keys = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.01, 0.28), keysMat);
+  keys.position.set(0, 1.33, 0.55);
+  keys.userData.buildingId = "computer-desk";
+  group.add(keys);
 
   return group;
 }
@@ -727,6 +787,64 @@ function createPRBoard(): THREE.Group {
   group.add(label);
 
   group.traverse((child) => { child.userData.buildingId = "pr-board"; });
+  return group;
+}
+
+function createBookshelf(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "bookshelf";
+
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x6d4c41, roughness: 0.8 });
+  const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x4e342e, roughness: 0.7 });
+
+  const shelfW = 2.4;
+  const shelfD = 0.5;
+  const totalH = 4;
+  const shelfCount = 4;
+
+  // Back panel
+  const backPanel = new THREE.Mesh(new THREE.BoxGeometry(shelfW, totalH, 0.06), darkWoodMat);
+  backPanel.position.set(0, totalH / 2, -shelfD / 2 + 0.03);
+  backPanel.castShadow = true;
+  group.add(backPanel);
+
+  // Side panels
+  for (const side of [-1, 1]) {
+    const sidePanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, totalH, shelfD), woodMat);
+    sidePanel.position.set(side * (shelfW / 2 - 0.04), totalH / 2, 0);
+    sidePanel.castShadow = true;
+    group.add(sidePanel);
+  }
+
+  // Shelf boards (horizontal)
+  for (let i = 0; i <= shelfCount; i++) {
+    const y = i * (totalH / shelfCount);
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(shelfW, 0.06, shelfD), woodMat);
+    shelf.position.set(0, y + 0.03, 0);
+    shelf.castShadow = true;
+    group.add(shelf);
+  }
+
+  // Books on shelves (colored blocks)
+  const bookColors = [0xe53935, 0x1e88e5, 0x43a047, 0xfdd835, 0x8e24aa, 0xff7043, 0x00897b, 0x5c6bc0];
+  for (let row = 0; row < shelfCount; row++) {
+    const shelfY = row * (totalH / shelfCount) + 0.06;
+    const booksOnShelf = 3 + Math.floor(Math.random() * 4);
+    let xPos = -shelfW / 2 + 0.2;
+    for (let b = 0; b < booksOnShelf && xPos < shelfW / 2 - 0.2; b++) {
+      const bw = 0.1 + Math.random() * 0.12;
+      const bh = 0.5 + Math.random() * 0.35;
+      const color = bookColors[(row * 5 + b) % bookColors.length];
+      const book = new THREE.Mesh(
+        new THREE.BoxGeometry(bw, bh, shelfD * 0.7),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.8 })
+      );
+      book.position.set(xPos + bw / 2, shelfY + bh / 2, 0.03);
+      group.add(book);
+      xPos += bw + 0.03;
+    }
+  }
+
   return group;
 }
 
