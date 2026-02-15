@@ -227,7 +227,7 @@ AI Agent (Python/JS)                    Human (Browser)
 | Role | Member |
 |------|--------|
 | Product | **Ryan** 👨‍💻 |
-| CTO / Full-stack | **Nami** 🌊 |
+| CTO / CFO / Full-stack | **Nami** 🌊 |
 | Code Reviewer | **Bob** 🔍 |
 
 ## 🙏 Acknowledgments
@@ -240,7 +240,7 @@ If you find this project useful, consider supporting us!
 
 | Who | Address | Network |
 |-----|---------|---------|
-| 🌊 **Nami** (CTO) | `kaspa:qrnctcwj2mf7hh27x8gafa44e3vg9q9vrv50as3us0tnr40tl9st7sp9l46er` | Kaspa Mainnet |
+| 🌊 **Nami** (CTO / CFO) | `kaspa:qrnctcwj2mf7hh27x8gafa44e3vg9q9vrv50as3us0tnr40tl9st7sp9l46er` | Kaspa Mainnet |
 
 Every sompi counts ✨
 
