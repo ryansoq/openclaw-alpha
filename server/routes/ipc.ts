@@ -301,8 +301,14 @@ export async function handleIpcCommand(
     case "pr-list":
       return { ok: true, prs: ctx.prBoard.list() };
 
-    case "pr-refresh":
+    case "pr-refresh": {
+      const token = (parsed as { token?: string }).token;
+      const agentId = (args as { agentId?: string })?.agentId;
+      if (!agentId || !ctx.auth.validate(token, agentId)) {
+        throw new Error("Invalid or missing auth token. Register first to get a token.");
+      }
       return { ok: true, prs: await ctx.prBoard.refresh() };
+    }
 
     case "describe": {
       const skillPath = resolve(import.meta.dirname, "../../skills/world-room/skill.json");

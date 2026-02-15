@@ -33,6 +33,10 @@ export class PRBoard {
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(repo: string) {
+    // Validate repo format (owner/repo)
+    if (!/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(repo)) {
+      throw new Error(`Invalid repo format: ${repo}. Expected: owner/repo`);
+    }
     this.repo = repo;
   }
 
