@@ -361,6 +361,19 @@ export function createBuildings(scene: THREE.Scene): {
   });
   obstacles.push({ x: 0, z: -18, radius: 2 });
 
+  // 🔀 PR Board (near meeting table)
+  const prBoard = createPRBoard();
+  prBoard.position.set(-7, 0, -2);
+  scene.add(prBoard);
+  buildings.push({
+    id: "pr-board",
+    name: "🔀 PR Board",
+    position: new THREE.Vector3(-7, 0, -2),
+    obstacleRadius: 1.5,
+    mesh: prBoard,
+  });
+  obstacles.push({ x: -7, z: -2, radius: 1.5 });
+
   // 🚪 入口標示 (前方)
   const entrance = createEntrance();
   entrance.position.set(0, 0, 20);
@@ -671,6 +684,49 @@ function createWhiteboard(): THREE.Group {
 
   group.traverse((child) => { child.userData.buildingId = "whiteboard"; });
 
+  return group;
+}
+
+function createPRBoard(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "building_pr-board";
+  group.userData.buildingId = "pr-board";
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.4, metalness: 0.3 });
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.3 });
+
+  // Stand (pole)
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.5, 8), frameMat);
+  pole.position.set(0, 1.75, 0);
+  group.add(pole);
+
+  // Base
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.1, 16), frameMat);
+  base.position.set(0, 0.05, 0);
+  group.add(base);
+
+  // Screen (dark board)
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 0.08), boardMat);
+  screen.position.set(0, 3, 0);
+  screen.castShadow = true;
+  group.add(screen);
+
+  // Screen bezel
+  const bezelMat = new THREE.MeshStandardMaterial({ color: 0x00bcd4, roughness: 0.5, emissive: 0x004d54, emissiveIntensity: 0.3 });
+  const topBezel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.06, 0.1), bezelMat);
+  topBezel.position.set(0, 3.83, 0);
+  group.add(topBezel);
+  const bottomBezel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.06, 0.1), bezelMat);
+  bottomBezel.position.set(0, 2.17, 0);
+  group.add(bottomBezel);
+
+  // "PR" label via small colored blocks as decoration
+  const labelMat = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x00acc1, emissiveIntensity: 0.5 });
+  const label = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.1), labelMat);
+  label.position.set(0, 3.95, 0);
+  group.add(label);
+
+  group.traverse((child) => { child.userData.buildingId = "pr-board"; });
   return group;
 }
 
