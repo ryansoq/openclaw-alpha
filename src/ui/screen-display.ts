@@ -1,11 +1,7 @@
 /**
- * Screen Display UI — renders terminal/markdown content on desk screens via CSS2DObject.
- * Nami desk screen: (-12, 2.5, -10)
- * Colleague desk screen: (12, 2.5, -10)
+ * Screen Display UI — overlay panel (click-to-open) showing agent screen content.
+ * No more CSS2DObject on the 3D scene.
  */
-
-import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
-import * as THREE from "three";
 
 interface ScreenContent {
   agentId: string;
@@ -14,91 +10,112 @@ interface ScreenContent {
   updatedAt: number;
 }
 
-// Two screen positions: left (nami) and right (colleague)
-const SCREEN_POSITIONS = [
-  { x: -12, y: 2.8, z: -10 }, // nami desk
-  { x: 12, y: 2.8, z: -10 },  // colleague desk
-];
+let screens: ScreenContent[] = [];
+let serverUrl = "";
 
-const screenLabels: CSS2DObject[] = [];
-const screenDivs: HTMLDivElement[] = [];
+export interface ScreenDisplayAPI {
+  showForDesk(deskId: string): void;
+  hide(): void;
+  isVisible(): boolean;
+}
 
-export function initScreenDisplay(scene: THREE.Scene, serverUrl: string): void {
-  for (let i = 0; i < SCREEN_POSITIONS.length; i++) {
-    const div = document.createElement("div");
-    div.className = "screen-display";
-    Object.assign(div.style, {
-      pointerEvents: "none",
-      width: "160px",
-      maxHeight: "100px",
-      overflow: "hidden",
-      padding: "4px 6px",
-      fontFamily: "'Courier New', monospace",
-      fontSize: "8px",
-      lineHeight: "1.3",
-      borderRadius: "3px",
-      background: "rgba(0,0,0,0.9)",
-      color: "#33ff33",
-      textAlign: "left",
-    });
-    div.innerHTML = `<span style="color:#555">screen ${i}</span>`;
+export function initScreenDisplay(_serverUrl: string): ScreenDisplayAPI {
+  serverUrl = _serverUrl;
 
-    const label = new CSS2DObject(div);
-    const pos = SCREEN_POSITIONS[i];
-    label.position.set(pos.x, pos.y, pos.z);
-    scene.add(label);
+  // Initial fetch + poll
+  fetchScreens();
+  setInterval(fetchScreens, 30_000);
 
-    screenDivs.push(div);
-    screenLabels.push(label);
+  const overlay = document.getElementById("building-overlay")!;
+  let visible = false;
+
+  function hide(): void {
+    overlay.classList.remove("visible");
+    visible = false;
   }
 
-  // Initial fetch
-  fetchScreens(serverUrl);
-  // Poll every 30s
-  setInterval(() => fetchScreens(serverUrl), 30_000);
+  function showForDesk(deskId: string): void {
+    const panel = overlay.querySelector(".building-panel") as HTMLElement;
+    panel.textContent = "";
+    panel.className = "building-panel screen-display-panel";
+
+    // Header
+    const header = document.createElement("div");
+    header.className = "bp-header";
+
+    const title = document.createElement("h2");
+    title.textContent = `🖥️ ${deskId}`;
+    header.appendChild(title);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "bp-close";
+    closeBtn.textContent = "×";
+    closeBtn.addEventListener("click", hide);
+    header.appendChild(closeBtn);
+
+    panel.appendChild(header);
+
+    // Find screen for this desk
+    // Map desk index to screen: sort screens by agentId, match by desk index
+    const sorted = [...screens].sort((a, b) => a.agentId.localeCompare(b.agentId));
+    // Extract desk index from deskId (e.g. "desk-0" → 0, "desk-1" → 1, "desk" → 0)
+    const match = deskId.match(/(\d+)/);
+    const idx = match ? parseInt(match[1], 10) : 0;
+    const screen = sorted[idx];
+
+    const content = document.createElement("div");
+    content.style.cssText = "padding:16px;overflow-y:auto;max-height:70vh;";
+
+    if (!screen) {
+      content.innerHTML = `<div style="color:#999;text-align:center;padding:40px 0">No screen content for this desk</div>`;
+    } else {
+      const isTerminal = screen.style === "terminal";
+      const screenEl = document.createElement("div");
+      screenEl.style.cssText = isTerminal
+        ? "background:#0a0a0a;color:#33ff33;font-family:'Courier New',monospace;font-size:13px;line-height:1.5;padding:16px;border-radius:8px;white-space:pre-wrap;word-break:break-all;"
+        : "background:#fafafa;color:#222;font-family:system-ui,sans-serif;font-size:13px;line-height:1.6;padding:16px;border-radius:8px;";
+
+      const agentLabel = document.createElement("div");
+      agentLabel.style.cssText = isTerminal
+        ? "color:#33ff33;font-weight:600;margin-bottom:8px;opacity:0.7;"
+        : "color:#666;font-weight:600;margin-bottom:8px;";
+      agentLabel.textContent = `Agent: ${screen.agentId}`;
+      screenEl.appendChild(agentLabel);
+
+      for (const line of screen.lines) {
+        const lineEl = document.createElement("div");
+        lineEl.textContent = line;
+        screenEl.appendChild(lineEl);
+      }
+
+      if (screen.lines.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.opacity = "0.5";
+        empty.textContent = "~ (empty)";
+        screenEl.appendChild(empty);
+      }
+
+      content.appendChild(screenEl);
+    }
+
+    panel.appendChild(content);
+    overlay.classList.add("visible");
+    visible = true;
+  }
+
+  return { showForDesk, hide, isVisible: () => visible };
 }
 
 export function handleScreenUpdate(data: { screens: ScreenContent[] }): void {
-  renderScreens(data.screens);
+  screens = data.screens;
 }
 
-async function fetchScreens(serverUrl: string): Promise<void> {
+async function fetchScreens(): Promise<void> {
   try {
     const res = await fetch(`${serverUrl}/api/screens`);
     const data = await res.json();
     if (data.ok && data.screens) {
-      renderScreens(data.screens);
+      screens = data.screens;
     }
   } catch { /* server not ready */ }
-}
-
-function renderScreens(screens: ScreenContent[]): void {
-  // Assign screens to desk positions using agentId hash
-  // Sort screens by agentId for deterministic placement
-  const sorted = [...screens].sort((a, b) => a.agentId.localeCompare(b.agentId));
-
-  for (let i = 0; i < screenDivs.length; i++) {
-    const screen = sorted[i];
-    if (!screen) {
-      screenDivs[i].innerHTML = `<span style="color:#555">_</span>`;
-      continue;
-    }
-
-    const isTerminal = screen.style === "terminal";
-    const bg = isTerminal ? "rgba(0,0,0,0.9)" : "rgba(255,255,255,0.9)";
-    const fg = isTerminal ? "#33ff33" : "#222";
-
-    screenDivs[i].style.background = bg;
-    screenDivs[i].style.color = fg;
-
-    let html = "";
-    for (const line of screen.lines) {
-      html += `<div>${esc(line)}</div>`;
-    }
-    screenDivs[i].innerHTML = html || `<span style="opacity:0.5">~</span>`;
-  }
-}
-
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

@@ -13,6 +13,8 @@ import { initTaskBoard, handleTaskBoardMessage } from "./ui/task-board.js";
 import { setupPRBoard } from "./ui/pr-board.js";
 import { initDashboard, handleDashboardUpdate } from "./ui/dashboard.js";
 import { initScreenDisplay, handleScreenUpdate } from "./ui/screen-display.js";
+import type { DashboardAPI } from "./ui/dashboard.js";
+import type { ScreenDisplayAPI } from "./ui/screen-display.js";
 import * as THREE from "three";
 import type { AgentProfile, AgentState, WorldMessage, RoomInfoMessage } from "../server/types.js";
 
@@ -278,9 +280,16 @@ ws.connect();
 // Load initial task board data
 initTaskBoard(serverBaseUrl || window.location.origin);
 
-// Init dashboard and screen displays
-initDashboard(scene, serverBaseUrl || window.location.origin);
-initScreenDisplay(scene, serverBaseUrl || window.location.origin);
+// Init dashboard and screen displays (overlay mode — no scene needed)
+const dashboard: DashboardAPI = initDashboard(serverBaseUrl || window.location.origin, () => prBoard.show());
+const screenDisplay: ScreenDisplayAPI = initScreenDisplay(serverBaseUrl || window.location.origin);
+
+// ── Whiteboard click: show dashboard with "View PRs" toggle ────
+
+function showWhiteboardPanel(): void {
+  // Show dashboard overlay; it has a "View PRs" button built in
+  dashboard.show();
+}
 
 // ── Click to select lobster or building ────────────────────────
 
@@ -324,7 +333,11 @@ renderer.domElement.addEventListener("click", (event: MouseEvent) => {
         return;
       }
       if (obj.userData.buildingId === "whiteboard") {
-        prBoard.show();
+        showWhiteboardPanel();
+        return;
+      }
+      if (obj.userData.buildingId && String(obj.userData.buildingId).includes("desk")) {
+        screenDisplay.showForDesk(obj.userData.buildingId);
         return;
       }
       obj = obj.parent;
