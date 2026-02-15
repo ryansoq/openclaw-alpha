@@ -33,6 +33,7 @@ export class AgentRegistry {
       webhookUrl: profile.webhookUrl ?? existing?.webhookUrl,
       webhookHeaders: profile.webhookHeaders ?? existing?.webhookHeaders,
       kaspaAddress: profile.kaspaAddress ?? existing?.kaspaAddress,
+      contacts: profile.contacts ?? existing?.contacts ?? [],
       joinedAt: existing?.joinedAt ?? now,
       lastSeen: now,
     };

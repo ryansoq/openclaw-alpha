@@ -1464,6 +1464,43 @@ body {
   background: rgba(73, 160, 120, 0.15);
 }
 
+/* ── Profile Contacts ──────────────────────────────────────── */
+
+.profile-contacts {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-contacts-empty {
+  color: #999;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.profile-contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.profile-contact-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.profile-contact-addr {
+  color: #888;
+  font-family: monospace;
+  font-size: 11px;
+  cursor: help;
+}
+
 /* ── Agent Chat Overlay ────────────────────────────────────── */
 
 .agent-chat-panel {

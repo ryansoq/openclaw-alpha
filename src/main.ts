@@ -310,8 +310,9 @@ const pickPointer = new THREE.Vector2();
 renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 
 renderer.domElement.addEventListener("click", (event: MouseEvent) => {
-  // Don't process clicks when building panel is open
-  if (buildingPanel.isVisible()) return;
+  // Don't process clicks when building panel or agent chat is open
+  const bOverlay = document.getElementById("building-overlay");
+  if (bOverlay?.classList.contains("visible")) return;
 
   // First check for building clicks
   const rect = renderer.domElement.getBoundingClientRect();

@@ -209,6 +209,14 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/contacts/:agentId — Get agent contacts ─────────────
+  if (url.startsWith("/api/contacts/") && method === "GET") {
+    const agentId = url.replace("/api/contacts/", "").split("?")[0];
+    const profile = ctx.registry.get(agentId);
+    if (!profile) return json(res, { error: "Agent not found" }, 404);
+    return json(res, { ok: true, contacts: profile.contacts ?? [] });
+  }
+
   // ── /api/messages/send — Send Kaspa on-chain message ───────
   if (url === "/api/messages/send" && method === "POST") {
     try {

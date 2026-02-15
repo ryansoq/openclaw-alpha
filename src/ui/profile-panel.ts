@@ -136,6 +136,43 @@ export function setupProfilePanel(
     });
     container.appendChild(msgBtn);
 
+    // Contacts section
+    const contactsLabel = document.createElement("div");
+    contactsLabel.className = "profile-label";
+    contactsLabel.textContent = "📱 通訊錄";
+    container.appendChild(contactsLabel);
+
+    const contactsList = document.createElement("div");
+    contactsList.className = "profile-contacts";
+
+    const contacts = (profile as any).contacts ?? [];
+    if (contacts.length === 0) {
+      const emptyEl = document.createElement("div");
+      emptyEl.className = "profile-contacts-empty";
+      emptyEl.textContent = "尚無聯絡人";
+      contactsList.appendChild(emptyEl);
+    } else {
+      for (const contact of contacts) {
+        const row = document.createElement("div");
+        row.className = "profile-contact-row";
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "profile-contact-name";
+        nameSpan.textContent = contact.name;
+        row.appendChild(nameSpan);
+
+        const addrSpan = document.createElement("span");
+        addrSpan.className = "profile-contact-addr";
+        const addr = contact.kaspaAddress;
+        addrSpan.textContent = `${addr.slice(0, 10)}...${addr.slice(-6)}`;
+        addrSpan.title = addr;
+        row.appendChild(addrSpan);
+
+        contactsList.appendChild(row);
+      }
+    }
+    container.appendChild(contactsList);
+
     container.classList.add("visible");
     window.addEventListener("keydown", handleEscapeKey);
   }

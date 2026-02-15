@@ -398,6 +398,40 @@ export async function handleIpcCommand(
       return { ok: true, messages };
     }
 
+    case "contacts-add": {
+      const a = args as { agentId?: string; name?: string; kaspaAddress?: string };
+      if (!a?.agentId) throw new Error("agentId required");
+      if (!a?.name || !a?.kaspaAddress) throw new Error("name and kaspaAddress required");
+      const profile = ctx.registry.get(a.agentId);
+      if (!profile) throw new Error("Agent not found");
+      const contacts = profile.contacts ?? [];
+      // Don't add duplicate addresses
+      if (contacts.some(c => c.kaspaAddress === a.kaspaAddress)) {
+        return { ok: true, contacts, message: "Already in contacts" };
+      }
+      contacts.push({ name: a.name, kaspaAddress: a.kaspaAddress!, addedAt: Date.now() });
+      ctx.registry.register({ agentId: a.agentId, contacts });
+      return { ok: true, contacts };
+    }
+
+    case "contacts-remove": {
+      const a = args as { agentId?: string; kaspaAddress?: string };
+      if (!a?.agentId || !a?.kaspaAddress) throw new Error("agentId and kaspaAddress required");
+      const profile = ctx.registry.get(a.agentId);
+      if (!profile) throw new Error("Agent not found");
+      const contacts = (profile.contacts ?? []).filter(c => c.kaspaAddress !== a.kaspaAddress);
+      ctx.registry.register({ agentId: a.agentId, contacts });
+      return { ok: true, contacts };
+    }
+
+    case "contacts-list": {
+      const a = args as { agentId?: string };
+      if (!a?.agentId) throw new Error("agentId required");
+      const profile = ctx.registry.get(a.agentId);
+      if (!profile) throw new Error("Agent not found");
+      return { ok: true, contacts: profile.contacts ?? [] };
+    }
+
     default:
       throw new Error(`Unknown command: ${command}`);
   }

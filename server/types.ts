@@ -8,6 +8,12 @@ export interface AgentSkillDeclaration {
 
 // ── Agent Profile ──────────────────────────────────────────────
 
+export interface AgentContact {
+  name: string;
+  kaspaAddress: string;
+  addedAt: number;
+}
+
 export interface AgentProfile {
   agentId: string;
   name: string;
@@ -20,6 +26,7 @@ export interface AgentProfile {
   webhookUrl?: string;
   webhookHeaders?: Record<string, string>;
   kaspaAddress?: string;
+  contacts?: AgentContact[];
   joinedAt: number;
   lastSeen: number;
 }
