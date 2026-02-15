@@ -48,7 +48,7 @@ SECRETS_PATH = os.path.expanduser("~/.secrets/testnet-wallet.json")
 SECRETS_PATH_ALT = os.path.expanduser("~/clawd/.secrets/testnet-wallet.json")
 
 MAX_PAYLOAD_SIZE = 1000  # bytes
-DEFAULT_FEE = 5000  # sompi (需足夠覆蓋 payload 帶來的額外 mass)
+DEFAULT_FEE = 10000  # sompi (0.0001 KAS, 足夠覆蓋最大 payload)
 
 
 def load_wallet():
