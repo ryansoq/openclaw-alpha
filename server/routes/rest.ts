@@ -197,6 +197,18 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/dashboard — All dashboard widgets ─────────────────
+  if (url === "/api/dashboard" && method === "GET") {
+    json(res, 200, { ok: true, entries: ctx.dashboardStore.getAll(), widgets: ctx.dashboardStore.getAllWidgets() });
+    return true;
+  }
+
+  // ── /api/screens — All screen content ─────────────────────
+  if (url === "/api/screens" && method === "GET") {
+    json(res, 200, { ok: true, screens: ctx.screenStore.getAll() });
+    return true;
+  }
+
   // ── /health — Server health check ─────────────────────────
   if (method === "GET" && url === "/health") {
     json(res, 200, {

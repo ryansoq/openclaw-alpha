@@ -11,6 +11,8 @@ import { setupRoomInfoBar } from "./ui/room-info-bar.js";
 import { setupTelegramLogin } from "./ui/telegram-login.js";
 import { initTaskBoard, handleTaskBoardMessage } from "./ui/task-board.js";
 import { setupPRBoard } from "./ui/pr-board.js";
+import { initDashboard, handleDashboardUpdate } from "./ui/dashboard.js";
+import { initScreenDisplay, handleScreenUpdate } from "./ui/screen-display.js";
 import * as THREE from "three";
 import type { AgentProfile, AgentState, WorldMessage, RoomInfoMessage } from "../server/types.js";
 
@@ -261,10 +263,24 @@ ws.on("task-board", (_raw) => {
   handleTaskBoardMessage(data.entries);
 });
 
+ws.on("board-update", (_raw) => {
+  const msg = _raw as { type: string; data: { entries: any[] } };
+  handleDashboardUpdate(msg.data);
+});
+
+ws.on("screen-update", (_raw) => {
+  const msg = _raw as { type: string; data: { screens: any[] } };
+  handleScreenUpdate(msg.data);
+});
+
 ws.connect();
 
 // Load initial task board data
 initTaskBoard(serverBaseUrl || window.location.origin);
+
+// Init dashboard and screen displays
+initDashboard(scene, serverBaseUrl || window.location.origin);
+initScreenDisplay(scene, serverBaseUrl || window.location.origin);
 
 // ── Click to select lobster or building ────────────────────────
 

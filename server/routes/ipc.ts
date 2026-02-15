@@ -310,6 +310,37 @@ export async function handleIpcCommand(
       return { ok: true, prs: await ctx.prBoard.refresh() };
     }
 
+    // ── Dashboard ──────────────────────────────────────────
+    case "board-update": {
+      const a = args as { agentId: string; widgets?: any[] };
+      if (!a?.agentId) throw new Error("agentId required");
+      const token = (parsed as { token?: string }).token;
+      if (!ctx.auth.validate(token, a.agentId)) throw new Error("Invalid auth token");
+      if (!Array.isArray(a.widgets)) throw new Error("widgets array required");
+      const entry = ctx.dashboardStore.update(a.agentId, a.widgets);
+      ctx.clientManager.broadcast(JSON.stringify({ type: "board-update", data: { entries: ctx.dashboardStore.getAll() } }));
+      return { ok: true, entry };
+    }
+
+    case "board-get":
+      return { ok: true, entries: ctx.dashboardStore.getAll(), widgets: ctx.dashboardStore.getAllWidgets() };
+
+    // ── Screen ──────────────────────────────────────────
+    case "screen-update": {
+      const a = args as { agentId: string; lines?: string[]; style?: string };
+      if (!a?.agentId) throw new Error("agentId required");
+      const token = (parsed as { token?: string }).token;
+      if (!ctx.auth.validate(token, a.agentId)) throw new Error("Invalid auth token");
+      if (!Array.isArray(a.lines)) throw new Error("lines array required");
+      const style = a.style === "markdown" ? "markdown" : "terminal";
+      const content = ctx.screenStore.update(a.agentId, a.lines, style);
+      ctx.clientManager.broadcast(JSON.stringify({ type: "screen-update", data: { screens: ctx.screenStore.getAll() } }));
+      return { ok: true, content };
+    }
+
+    case "screen-get":
+      return { ok: true, screens: ctx.screenStore.getAll() };
+
     case "describe": {
       const skillPath = resolve(import.meta.dirname, "../../skills/world-room/skill.json");
       const schema = JSON.parse(readFileSync(skillPath, "utf-8"));

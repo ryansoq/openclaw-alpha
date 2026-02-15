@@ -13,6 +13,8 @@ import { AuthManager } from "./auth.js";
 import { WebhookNotifier } from "./webhook.js";
 import { TaskBoard } from "./task-board.js";
 import { PRBoard } from "./pr-board.js";
+import { DashboardStore } from "./dashboard-store.js";
+import { ScreenStore } from "./screen-store.js";
 import { loadRoomConfig } from "./room-config.js";
 import { createRoomInfoGetter } from "./room-info.js";
 import { handleRestRoute } from "./routes/rest.js";
@@ -38,6 +40,8 @@ const webhook = new WebhookNotifier(registry);
 const taskBoard = new TaskBoard();
 const prBoard = new PRBoard(process.env.PR_BOARD_REPO ?? "ryansoq/openclaw-office");
 prBoard.start();
+const dashboardStore = new DashboardStore();
+const screenStore = new ScreenStore();
 
 // ── Game engine ─────────────────────────────────────────────────
 
@@ -77,7 +81,8 @@ const getRoomInfo = createRoomInfoGetter(
 
 const ctx: ServerContext = {
   registry, state, eventStore, commandQueue, clawhub,
-  nostr, clientManager, gameLoop, auth, webhook, taskBoard, prBoard, config, getRoomInfo,
+  nostr, clientManager, gameLoop, auth, webhook, taskBoard, prBoard,
+  dashboardStore, screenStore, config, getRoomInfo,
 };
 
 // ── HTTP server ─────────────────────────────────────────────────

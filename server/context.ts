@@ -10,6 +10,8 @@ import type { AuthManager } from "./auth.js";
 import type { WebhookNotifier } from "./webhook.js";
 import type { TaskBoard } from "./task-board.js";
 import type { PRBoard } from "./pr-board.js";
+import type { DashboardStore } from "./dashboard-store.js";
+import type { ScreenStore } from "./screen-store.js";
 import type { RoomInfoMessage } from "./types.js";
 
 /** Shared server context passed to route handlers */
@@ -26,6 +28,8 @@ export interface ServerContext {
   webhook: WebhookNotifier;
   taskBoard: TaskBoard;
   prBoard: PRBoard;
+  dashboardStore: DashboardStore;
+  screenStore: ScreenStore;
   config: { port: number; host: string; roomId: string; roomName: string; roomDescription?: string; maxAgents: number };
   getRoomInfo: () => RoomInfoMessage;
 }
