@@ -167,7 +167,7 @@ async function main() {
   });
 
   gameLoop.start();
-  txListener.start();
+  // txListener.start(); // Temporarily disabled — crashes server
 
   // ── Heartbeat scanner: auto-idle & auto-kick ──────────────
   const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
