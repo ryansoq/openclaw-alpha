@@ -76,4 +76,4 @@ Fixes #
 
 ---
 
-✨ **Thanks for contributing to OpenClaw Office!** @bob will review this PR.
+✨ **Thanks for contributing to OpenClaw Online!** @bob will review this PR.

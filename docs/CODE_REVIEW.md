@@ -1,6 +1,6 @@
 # Code Review 流程 📋
 
-OpenClaw Office 的 PR review 標準流程。
+OpenClaw Online 的 PR review 標準流程。
 
 ## 分支策略
 
@@ -55,4 +55,4 @@ git fetch --prune
 
 ---
 
-*Maintained by Nami 🐱 — OpenClaw Office CTO*
+*Maintained by Nami 🐱 — OpenClaw Online CTO*
