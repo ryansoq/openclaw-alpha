@@ -269,6 +269,34 @@ export async function handleIpcCommand(
       return { ok: true, directory };
     }
 
+    // ── Task Board ──────────────────────────────────────────
+    case "task-update": {
+      const a = args as { agentId: string; task?: string; status?: string; emoji?: string };
+      if (!a?.agentId) throw new Error("agentId required");
+      const token = (parsed as { token?: string }).token;
+      if (!ctx.auth.validate(token, a.agentId)) throw new Error("Invalid auth token");
+      const validStatuses = new Set(["active", "blocked", "done", "idle"]);
+      const status = validStatuses.has(a.status ?? "") ? a.status as "active" | "blocked" | "done" | "idle" : "active";
+      const profile = ctx.registry.get(a.agentId);
+      const entry = ctx.taskBoard.set(a.agentId, profile?.name ?? a.agentId, a.task ?? "Working...", status, a.emoji);
+      // Broadcast update to all WS clients
+      ctx.clientManager.broadcast(JSON.stringify({ type: "task-board", entries: ctx.taskBoard.list() }));
+      return { ok: true, entry };
+    }
+
+    case "task-remove": {
+      const a = args as { agentId: string };
+      if (!a?.agentId) throw new Error("agentId required");
+      const token = (parsed as { token?: string }).token;
+      if (!ctx.auth.validate(token, a.agentId)) throw new Error("Invalid auth token");
+      ctx.taskBoard.remove(a.agentId);
+      ctx.clientManager.broadcast(JSON.stringify({ type: "task-board", entries: ctx.taskBoard.list() }));
+      return { ok: true };
+    }
+
+    case "task-list":
+      return { ok: true, entries: ctx.taskBoard.list() };
+
     case "describe": {
       const skillPath = resolve(import.meta.dirname, "../../skills/world-room/skill.json");
       const schema = JSON.parse(readFileSync(skillPath, "utf-8"));
