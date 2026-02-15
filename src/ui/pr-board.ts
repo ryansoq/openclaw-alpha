@@ -62,7 +62,7 @@ export function setupPRBoard(serverUrl: string): PRBoardAPI {
 
     const subtitle = document.createElement("p");
     subtitle.className = "bp-subtitle";
-    subtitle.textContent = "Open pull requests — ryansoq/openclaw-office";
+    subtitle.textContent = "Open pull requests — ryansoq/openclaw-alpha";
     header.appendChild(subtitle);
 
     const closeBtn = document.createElement("button");

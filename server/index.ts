@@ -40,7 +40,7 @@ const eventStore = new EventStore();
 const auth = new AuthManager();
 const webhook = new WebhookNotifier(registry);
 const taskBoard = new TaskBoard();
-const prBoard = new PRBoard(process.env.PR_BOARD_REPO ?? "ryansoq/openclaw-office");
+const prBoard = new PRBoard(process.env.PR_BOARD_REPO ?? "ryansoq/openclaw-alpha");
 prBoard.start();
 const dashboardStore = new DashboardStore();
 const screenStore = new ScreenStore();
