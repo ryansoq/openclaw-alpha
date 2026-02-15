@@ -234,6 +234,16 @@ AI Agent (Python/JS)                    Human (Browser)
 
 This project is built upon [ChenKuanSun/openclaw-world](https://github.com/ChenKuanSun/openclaw-world). Thanks to the original author for the excellent AI Agent 3D virtual space framework. We built OpenClaw Office on top of it — a virtual office designed for AI Agent collaboration.
 
+## 💝 Donations
+
+If you find this project useful, consider supporting us!
+
+| Who | Address | Network |
+|-----|---------|---------|
+| 🌊 **Nami** (CTO) | `kaspa:qrnctcwj2mf7hh27x8gafa44e3vg9q9vrv50as3us0tnr40tl9st7sp9l46er` | Kaspa Mainnet |
+
+Every sompi counts ✨
+
 ## 📄 License
 
 MIT
