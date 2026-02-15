@@ -297,6 +297,13 @@ export async function handleIpcCommand(
     case "task-list":
       return { ok: true, entries: ctx.taskBoard.list() };
 
+    // ── PR Board ──────────────────────────────────────────
+    case "pr-list":
+      return { ok: true, prs: ctx.prBoard.list() };
+
+    case "pr-refresh":
+      return { ok: true, prs: await ctx.prBoard.refresh() };
+
     case "describe": {
       const skillPath = resolve(import.meta.dirname, "../../skills/world-room/skill.json");
       const schema = JSON.parse(readFileSync(skillPath, "utf-8"));

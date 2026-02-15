@@ -10,6 +10,7 @@ import { setupBuildingPanel } from "./ui/building-panel.js";
 import { setupRoomInfoBar } from "./ui/room-info-bar.js";
 import { setupTelegramLogin } from "./ui/telegram-login.js";
 import { initTaskBoard, handleTaskBoardMessage } from "./ui/task-board.js";
+import { setupPRBoard } from "./ui/pr-board.js";
 import * as THREE from "three";
 import type { AgentProfile, AgentState, WorldMessage, RoomInfoMessage } from "../server/types.js";
 
@@ -39,6 +40,7 @@ const allObstacles = [...obstacles, ...buildingObstacles];
 const lobsterManager = new LobsterManager(scene, allObstacles);
 const effects = new EffectsManager(scene, camera);
 const buildingPanel = setupBuildingPanel(serverParam);
+const prBoard = setupPRBoard(serverBaseUrl || window.location.origin);
 const roomInfoBar = setupRoomInfoBar();
 
 // Proximity greetings: show emote when agents meet
@@ -303,6 +305,10 @@ renderer.domElement.addEventListener("click", (event: MouseEvent) => {
       }
       if (obj.userData.buildingId === "worlds-portal") {
         buildingPanel.showWorlds();
+        return;
+      }
+      if (obj.userData.buildingId === "pr-board") {
+        prBoard.show();
         return;
       }
       obj = obj.parent;
