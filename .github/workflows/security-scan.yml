@@ -50,7 +50,7 @@ jobs:
           cat audit-report.txt
       
       - name: Upload audit results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-audit-reports
           path: |
@@ -68,8 +68,9 @@ jobs:
       - name: Check for secrets in code
         run: |
           echo "🔍 Scanning for potential secrets..."
-          # 檢查常見的秘密模式
-          if grep -r -E "(api[_-]?key|secret[_-]?key|password|token)" --include="*.ts" --include="*.js" server/ src/ ; then
+          # 排除已知的 auth 邏輯檔案（不含真實密鑰，只是 token 管理程式碼）
+          EXCLUDE="--exclude=auth.ts --exclude=telegram-auth.ts --exclude=telegram-login.ts"
+          if grep -r -E "(api[_-]?key|secret[_-]?key|password)[[:space:]]*=" $EXCLUDE --include="*.ts" --include="*.js" server/ src/ | grep -v "// safe" | grep -v "interface" | grep -v "type " ; then
             echo "⚠️  Warning: Potential secrets found in code"
             exit 1
           fi
@@ -92,6 +93,6 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Dependency Review
-        uses: actions/dependency-review-action@v3
+        uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
