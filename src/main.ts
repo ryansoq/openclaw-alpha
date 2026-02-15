@@ -9,6 +9,7 @@ import { setupProfilePanel } from "./ui/profile-panel.js";
 import { setupBuildingPanel } from "./ui/building-panel.js";
 import { setupRoomInfoBar } from "./ui/room-info-bar.js";
 import { setupTelegramLogin } from "./ui/telegram-login.js";
+import { initTaskBoard, handleTaskBoardMessage } from "./ui/task-board.js";
 import * as THREE from "three";
 import type { AgentProfile, AgentState, WorldMessage, RoomInfoMessage } from "../server/types.js";
 
@@ -245,7 +246,15 @@ ws.on("roomInfo", (_raw) => {
   roomInfoBar.update(data.info);
 });
 
+ws.on("task-board", (_raw) => {
+  const data = _raw as { entries: any[] };
+  handleTaskBoardMessage(data.entries);
+});
+
 ws.connect();
+
+// Load initial task board data
+initTaskBoard(serverBaseUrl || window.location.origin);
 
 // ── Click to select lobster or building ────────────────────────
 

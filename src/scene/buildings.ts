@@ -348,6 +348,19 @@ export function createBuildings(scene: THREE.Scene): {
   });
   obstacles.push({ x: 12, z: 12, radius: 2.5 });
 
+  // 📋 白板 (後方牆壁前)
+  const whiteboard = createWhiteboard();
+  whiteboard.position.set(0, 0, -18);
+  scene.add(whiteboard);
+  buildings.push({
+    id: "whiteboard",
+    name: "📋 Task Board",
+    position: new THREE.Vector3(0, 0, -18),
+    obstacleRadius: 2,
+    mesh: whiteboard,
+  });
+  obstacles.push({ x: 0, z: -18, radius: 2 });
+
   // 🚪 入口標示 (前方)
   const entrance = createEntrance();
   entrance.position.set(0, 0, 20);
@@ -598,6 +611,65 @@ function createEntrance(): THREE.Group {
   sign.position.set(1.8, 1, 0);
   sign.userData.buildingId = "entrance";
   group.add(sign);
+
+  return group;
+}
+
+function createWhiteboard(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = "building_whiteboard";
+  group.userData.buildingId = "whiteboard";
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x424242, roughness: 0.4, metalness: 0.3 });
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.2 });
+
+  // Whiteboard surface
+  const board = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 0.1), boardMat);
+  board.position.set(0, 2.5, 0);
+  board.castShadow = true;
+  group.add(board);
+
+  // Frame (4 edges)
+  const frameW = 0.15;
+  const topFrame = new THREE.Mesh(new THREE.BoxGeometry(6.3, frameW, 0.15), frameMat);
+  topFrame.position.set(0, 4.05, 0);
+  group.add(topFrame);
+  const bottomFrame = new THREE.Mesh(new THREE.BoxGeometry(6.3, frameW, 0.15), frameMat);
+  bottomFrame.position.set(0, 0.95, 0);
+  group.add(bottomFrame);
+  const leftFrame = new THREE.Mesh(new THREE.BoxGeometry(frameW, 3.25, 0.15), frameMat);
+  leftFrame.position.set(-3.15, 2.5, 0);
+  group.add(leftFrame);
+  const rightFrame = new THREE.Mesh(new THREE.BoxGeometry(frameW, 3.25, 0.15), frameMat);
+  rightFrame.position.set(3.15, 2.5, 0);
+  group.add(rightFrame);
+
+  // Marker tray
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(4, 0.08, 0.3), frameMat);
+  tray.position.set(0, 0.9, 0.15);
+  group.add(tray);
+
+  // Colored markers on tray
+  const markerColors = [0xe53935, 0x1e88e5, 0x43a047, 0xff8f00];
+  for (let i = 0; i < markerColors.length; i++) {
+    const marker = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6),
+      new THREE.MeshStandardMaterial({ color: markerColors[i] })
+    );
+    marker.rotation.z = Math.PI / 2;
+    marker.position.set(-1 + i * 0.7, 0.98, 0.15);
+    group.add(marker);
+  }
+
+  // CSS2D label for task content (will be updated dynamically)
+  const taskEl = document.createElement("div");
+  taskEl.className = "whiteboard-tasks";
+  taskEl.id = "whiteboard-tasks";
+  const taskLabel = new CSS2DObject(taskEl);
+  taskLabel.position.set(0, 2.5, 0.1);
+  group.add(taskLabel);
+
+  group.traverse((child) => { child.userData.buildingId = "whiteboard"; });
 
   return group;
 }

@@ -11,6 +11,7 @@ import { GameLoop, TICK_RATE } from "./game-loop.js";
 import { EventStore } from "./event-store.js";
 import { AuthManager } from "./auth.js";
 import { WebhookNotifier } from "./webhook.js";
+import { TaskBoard } from "./task-board.js";
 import { loadRoomConfig } from "./room-config.js";
 import { createRoomInfoGetter } from "./room-info.js";
 import { handleRestRoute } from "./routes/rest.js";
@@ -33,6 +34,7 @@ const clawhub = new ClawhubStore();
 const eventStore = new EventStore();
 const auth = new AuthManager();
 const webhook = new WebhookNotifier(registry);
+const taskBoard = new TaskBoard();
 
 // ── Game engine ─────────────────────────────────────────────────
 
@@ -60,7 +62,7 @@ const getRoomInfo = createRoomInfoGetter(
 
 const ctx: ServerContext = {
   registry, state, eventStore, commandQueue, clawhub,
-  nostr, clientManager, gameLoop, auth, webhook, config, getRoomInfo,
+  nostr, clientManager, gameLoop, auth, webhook, taskBoard, config, getRoomInfo,
 };
 
 // ── HTTP server ─────────────────────────────────────────────────

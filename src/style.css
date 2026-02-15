@@ -1363,3 +1363,31 @@ body {
 .toolbar-btn:active {
   background: rgba(41, 128, 185, 0.2);
 }
+
+/* ── Whiteboard Task Board ───────────────────────────── */
+.whiteboard-tasks {
+  pointer-events: none;
+  width: 280px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  text-align: left;
+}
+.wb-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 4px;
+  text-align: center;
+}
+.wb-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.wb-emoji { flex-shrink: 0; }
+.wb-name { font-weight: 600; flex-shrink: 0; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+.wb-task { color: #555; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.wb-age { color: #999; font-size: 9px; flex-shrink: 0; }
+.wb-empty { color: #aaa; font-size: 11px; text-align: center; font-style: italic; }
