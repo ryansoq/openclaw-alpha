@@ -93,53 +93,7 @@ export function setupAgentChat(serverUrl: string): AgentChatAPI {
     messagesEl.appendChild(loading);
     panel.appendChild(messagesEl);
 
-    // Input row
-    const inputRow = document.createElement("div");
-    inputRow.className = "agent-chat-input-row";
-
-    const input = document.createElement("input");
-    input.className = "agent-chat-input";
-    input.type = "text";
-    input.placeholder = "Type a message...";
-    input.maxLength = 500;
-    inputRow.appendChild(input);
-
-    const sendBtn = document.createElement("button");
-    sendBtn.className = "agent-chat-send-btn";
-    sendBtn.textContent = "Send";
-    inputRow.appendChild(sendBtn);
-
-    panel.appendChild(inputRow);
-
-    // Send handler
-    const doSend = async () => {
-      const text = input.value.trim();
-      if (!text || !currentTarget) return;
-      input.value = "";
-      sendBtn.disabled = true;
-      sendBtn.textContent = "Sending...";
-      try {
-        await fetch(`${serverUrl}/api/messages/send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ from: currentMyId, to: currentTarget.agentId, text }),
-        });
-        await loadMessages();
-      } catch (err) {
-        console.error("[agent-chat] Send failed:", err);
-      } finally {
-        sendBtn.disabled = false;
-        sendBtn.textContent = "Send";
-      }
-    };
-
-    sendBtn.addEventListener("click", doSend);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        doSend();
-      }
-    });
+        // Read-only mode — no input needed (telecom operator view)
 
     // Load initial messages
     loadMessages();
