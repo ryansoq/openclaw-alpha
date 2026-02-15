@@ -11,6 +11,7 @@ import { setupRoomInfoBar } from "./ui/room-info-bar.js";
 import { setupTelegramLogin } from "./ui/telegram-login.js";
 import { initTaskBoard, handleTaskBoardMessage } from "./ui/task-board.js";
 import { setupPRBoard } from "./ui/pr-board.js";
+import { setupAgentChat } from "./ui/agent-chat.js";
 import { initDashboard, handleDashboardUpdate } from "./ui/dashboard.js";
 import { initScreenDisplay, handleScreenUpdate } from "./ui/screen-display.js";
 import type { DashboardAPI } from "./ui/dashboard.js";
@@ -45,6 +46,7 @@ const lobsterManager = new LobsterManager(scene, allObstacles);
 const effects = new EffectsManager(scene, camera);
 const buildingPanel = setupBuildingPanel(serverParam);
 const prBoard = setupPRBoard(serverBaseUrl || window.location.origin);
+const agentChat = setupAgentChat(serverBaseUrl || window.location.origin);
 const roomInfoBar = setupRoomInfoBar();
 
 // Proximity greetings: show emote when agents meet
@@ -85,6 +87,14 @@ const profilePanel = setupProfilePanel((agentId: string) => {
   if (pos) {
     controls.target.set(pos.x, pos.y + 2, pos.z);
   }
+});
+
+// Wire up "Send Message" button in profile panel → open chat overlay
+profilePanel.onSendMessage((targetProfile) => {
+  // Use the focused agent or default "anonymous" as sender
+  const myId = focusAgent || "anonymous";
+  profilePanel.hide();
+  agentChat.open(myId, targetProfile);
 });
 
 // ── WebSocket connection ───────────────────────────────────────

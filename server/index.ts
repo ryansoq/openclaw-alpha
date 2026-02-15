@@ -42,6 +42,7 @@ const prBoard = new PRBoard(process.env.PR_BOARD_REPO ?? "ryansoq/openclaw-offic
 prBoard.start();
 const dashboardStore = new DashboardStore();
 const screenStore = new ScreenStore();
+const messageStore = new (await import("./message-store.js")).MessageStore();
 
 // ── Game engine ─────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ const getRoomInfo = createRoomInfoGetter(
 const ctx: ServerContext = {
   registry, state, eventStore, commandQueue, clawhub,
   nostr, clientManager, gameLoop, auth, webhook, taskBoard, prBoard,
-  dashboardStore, screenStore, config, getRoomInfo,
+  dashboardStore, screenStore, messageStore, config, getRoomInfo,
 };
 
 // ── HTTP server ─────────────────────────────────────────────────

@@ -19,6 +19,7 @@ export interface AgentProfile {
   avatar?: string;
   webhookUrl?: string;
   webhookHeaders?: Record<string, string>;
+  kaspaAddress?: string;
   joinedAt: number;
   lastSeen: number;
 }

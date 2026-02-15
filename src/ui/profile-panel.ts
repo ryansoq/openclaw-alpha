@@ -3,6 +3,7 @@ import type { AgentProfile } from "../../server/types.js";
 interface ProfilePanelAPI {
   show(profile: AgentProfile): void;
   hide(): void;
+  onSendMessage(handler: (profile: AgentProfile) => void): void;
 }
 
 /**
@@ -14,6 +15,7 @@ export function setupProfilePanel(
 ): ProfilePanelAPI {
   const container = document.getElementById("profile-panel")!;
   let currentProfile: AgentProfile | null = null;
+  let sendMessageHandler: ((profile: AgentProfile) => void) | null = null;
 
   function render(profile: AgentProfile): void {
     // Clear previous content safely
@@ -54,6 +56,29 @@ export function setupProfilePanel(
       pkEl.className = "profile-pubkey";
       pkEl.textContent = `Pubkey: ${profile.pubkey.slice(0, 16)}...`;
       container.appendChild(pkEl);
+    }
+
+    // Kaspa Address
+    if (profile.kaspaAddress) {
+      const kaspaLabel = document.createElement("div");
+      kaspaLabel.className = "profile-label";
+      kaspaLabel.textContent = "Kaspa Address";
+      container.appendChild(kaspaLabel);
+
+      const kaspaEl = document.createElement("div");
+      kaspaEl.className = "profile-kaspa-addr";
+      const addr = profile.kaspaAddress;
+      kaspaEl.textContent = `${addr.slice(0, 16)}...${addr.slice(-8)}`;
+      kaspaEl.title = addr;
+      kaspaEl.style.cursor = "pointer";
+      kaspaEl.addEventListener("click", () => {
+        navigator.clipboard.writeText(addr).catch(() => {});
+        kaspaEl.textContent = "Copied!";
+        setTimeout(() => {
+          kaspaEl.textContent = `${addr.slice(0, 16)}...${addr.slice(-8)}`;
+        }, 1500);
+      });
+      container.appendChild(kaspaEl);
     }
 
     // Bio
@@ -100,6 +125,17 @@ export function setupProfilePanel(
     focusBtn.addEventListener("click", () => onFocusAgent(profile.agentId));
     container.appendChild(focusBtn);
 
+    // Send Message button
+    const msgBtn = document.createElement("button");
+    msgBtn.className = "profile-msg-btn";
+    msgBtn.textContent = "💬 Send Message";
+    msgBtn.addEventListener("click", () => {
+      if (currentProfile && sendMessageHandler) {
+        sendMessageHandler(currentProfile);
+      }
+    });
+    container.appendChild(msgBtn);
+
     container.classList.add("visible");
     window.addEventListener("keydown", handleEscapeKey);
   }
@@ -126,5 +162,8 @@ export function setupProfilePanel(
       render(profile);
     },
     hide,
+    onSendMessage(handler: (profile: AgentProfile) => void) {
+      sendMessageHandler = handler;
+    },
   };
 }

@@ -12,6 +12,7 @@ import type { TaskBoard } from "./task-board.js";
 import type { PRBoard } from "./pr-board.js";
 import type { DashboardStore } from "./dashboard-store.js";
 import type { ScreenStore } from "./screen-store.js";
+import type { MessageStore } from "./message-store.js";
 import type { RoomInfoMessage } from "./types.js";
 
 /** Shared server context passed to route handlers */
@@ -30,6 +31,7 @@ export interface ServerContext {
   prBoard: PRBoard;
   dashboardStore: DashboardStore;
   screenStore: ScreenStore;
+  messageStore: MessageStore;
   config: { port: number; host: string; roomId: string; roomName: string; roomDescription?: string; maxAgents: number };
   getRoomInfo: () => RoomInfoMessage;
 }

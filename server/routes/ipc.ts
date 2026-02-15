@@ -43,6 +43,7 @@ export async function handleIpcCommand(
         agentId: string; name?: string; pubkey?: string; bio?: string;
         capabilities?: string[]; color?: string; skills?: AgentSkillDeclaration[];
         webhookUrl?: string; webhookHeaders?: Record<string, string>;
+        kaspaAddress?: string;
       };
       if (!a?.agentId) throw new Error("agentId required");
       const profile = ctx.registry.register(a);
@@ -358,6 +359,43 @@ export async function handleIpcCommand(
       const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
       execFile(cmd, [url], (err) => { if (err) console.warn("[server] Failed to open browser:", err.message); });
       return { ok: true, url };
+    }
+
+    // ── Kaspa Messaging ───────────────────────────────────────
+    case "kaspa-send-message": {
+      const a = args as { from?: string; to?: string; text?: string };
+      if (!a?.from || !a?.to || !a?.text) throw new Error("from, to, and text required");
+      const fromProfile = ctx.registry.get(a.from);
+      const toProfile = ctx.registry.get(a.to);
+      if (!fromProfile) throw new Error(`Agent '${a.from}' not found`);
+      if (!toProfile) throw new Error(`Agent '${a.to}' not found`);
+
+      const text = a.text.slice(0, 500);
+      const msg = ctx.messageStore.add({
+        from: a.from, to: a.to, text, timestamp: Date.now(), status: "pending",
+      });
+
+      // TODO: Send actual on-chain TX when private key management is ready
+      const fromAddr = fromProfile.kaspaAddress;
+      const toAddr = toProfile.kaspaAddress;
+      if (fromAddr && toAddr) {
+        console.log(`[kaspa-msg] Would send TX from ${fromAddr} to ${toAddr}: ${text}`);
+      } else {
+        console.log(`[kaspa-msg] Mock send (no kaspa addresses): ${a.from} → ${a.to}: ${text}`);
+      }
+      ctx.messageStore.updateStatus(msg.id, "sent");
+
+      return { ok: true, message: { ...msg, status: "sent" } };
+    }
+
+    case "kaspa-messages": {
+      const a = args as { agentId?: string; withAgent?: string; limit?: number };
+      if (!a?.agentId) throw new Error("agentId required");
+      const limit = Math.min(Number(a.limit ?? 50), 200);
+      const messages = a.withAgent
+        ? ctx.messageStore.getConversation(a.agentId, a.withAgent, limit)
+        : ctx.messageStore.getForAgent(a.agentId, limit);
+      return { ok: true, messages };
     }
 
     default:

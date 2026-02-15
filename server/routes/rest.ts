@@ -209,6 +209,75 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/messages/send — Send Kaspa on-chain message ───────
+  if (url === "/api/messages/send" && method === "POST") {
+    try {
+      const body = (await readBody(req)) as {
+        from?: string; to?: string; text?: string;
+      };
+      if (!body.from || !body.to || !body.text) {
+        json(res, 400, { ok: false, error: "from, to, and text required" });
+        return true;
+      }
+      const fromProfile = ctx.registry.get(body.from);
+      const toProfile = ctx.registry.get(body.to);
+      if (!fromProfile) { json(res, 404, { ok: false, error: `Agent '${body.from}' not found` }); return true; }
+      if (!toProfile) { json(res, 404, { ok: false, error: `Agent '${body.to}' not found` }); return true; }
+
+      const text = body.text.slice(0, 500);
+      const payload = JSON.stringify({
+        t: "msg",
+        from: body.from,
+        to: body.to,
+        text,
+        ts: Date.now(),
+      });
+
+      // Store the message
+      const msg = ctx.messageStore.add({
+        from: body.from,
+        to: body.to,
+        text,
+        timestamp: Date.now(),
+        status: "pending",
+      });
+
+      // TODO: Actually send on-chain TX when private key management is ready
+      // For now, mock the send and mark as "sent"
+      const fromAddr = fromProfile.kaspaAddress;
+      const toAddr = toProfile.kaspaAddress;
+      if (fromAddr && toAddr) {
+        console.log(`[kaspa-msg] Would send TX from ${fromAddr} to ${toAddr} with payload: ${payload}`);
+      } else {
+        console.log(`[kaspa-msg] Mock send (no kaspa addresses): ${body.from} → ${body.to}: ${text}`);
+      }
+      ctx.messageStore.updateStatus(msg.id, "sent");
+
+      json(res, 200, { ok: true, message: { ...msg, status: "sent" } });
+    } catch (err) {
+      json(res, 400, { ok: false, error: String(err) });
+    }
+    return true;
+  }
+
+  // ── /api/messages/:agentId — Get messages for an agent ────
+  if (url.startsWith("/api/messages/") && method === "GET") {
+    const parts = url.split("/");
+    const agentId = decodeURIComponent(parts[3]?.split("?")[0] ?? "");
+    if (!agentId) { json(res, 400, { ok: false, error: "agentId required" }); return true; }
+
+    const reqUrl = new URL(req.url ?? "/", "http://localhost");
+    const withAgent = reqUrl.searchParams.get("with");
+    const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "50"), 200);
+
+    const messages = withAgent
+      ? ctx.messageStore.getConversation(agentId, withAgent, limit)
+      : ctx.messageStore.getForAgent(agentId, limit);
+
+    json(res, 200, { ok: true, messages });
+    return true;
+  }
+
   // ── /health — Server health check ─────────────────────────
   if (method === "GET" && url === "/health") {
     json(res, 200, {
