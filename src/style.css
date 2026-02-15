@@ -1609,6 +1609,238 @@ body {
   cursor: default;
 }
 
+/* ── Telecom Dashboard Panel (left slide-in) ─────────────────── */
+
+#telecom-toggle {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s, transform 0.15s;
+}
+
+#telecom-toggle:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: scale(1.05);
+}
+
+#telecom-toggle.active {
+  background: rgba(41, 128, 185, 0.12);
+  border-color: rgba(41, 128, 185, 0.3);
+}
+
+#room-info-bar.visible ~ #telecom-toggle {
+  top: 48px;
+}
+
+#telecom-panel {
+  position: fixed;
+  top: 0;
+  left: -360px;
+  width: 340px;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(12px);
+  z-index: 20;
+  padding: 20px 16px;
+  overflow-y: auto;
+  transition: left 0.25s ease;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
+}
+
+#telecom-panel.visible {
+  left: 0;
+}
+
+.tp-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #95a5a6;
+  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.tp-close:hover {
+  color: #2c3e50;
+}
+
+.tp-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2980b9;
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
+}
+
+.tp-section {
+  margin-bottom: 16px;
+}
+
+.tp-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #2980b9;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(41, 128, 185, 0.15);
+}
+
+.tp-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.tp-stat-card {
+  background: rgba(41, 128, 185, 0.04);
+  border: 1px solid rgba(41, 128, 185, 0.12);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.tp-stat-icon {
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.tp-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.tp-stat-label {
+  font-size: 9px;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tp-users-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tp-user-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  font-size: 11px;
+}
+
+.tp-user-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.tp-user-dot {
+  font-size: 8px;
+  flex-shrink: 0;
+}
+
+.tp-user-name {
+  font-weight: 600;
+  color: #2c3e50;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tp-user-addr {
+  font-size: 9px;
+  color: #95a5a6;
+  font-family: "SF Mono", "Fira Code", monospace;
+  flex-shrink: 0;
+}
+
+.tp-user-time {
+  font-size: 9px;
+  color: #7f8c8d;
+  flex-shrink: 0;
+}
+
+.tp-msg-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.tp-msg-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.tp-msg-flow {
+  font-weight: 600;
+  color: #2980b9;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.tp-msg-text {
+  color: #4a6274;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tp-msg-time {
+  font-size: 9px;
+  color: #95a5a6;
+  flex-shrink: 0;
+}
+
+.tp-empty {
+  text-align: center;
+  padding: 16px;
+  color: #95a5a6;
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* Mobile responsive */
+@media (max-width: 767px) {
+  #telecom-panel {
+    width: 100vw;
+    left: -100vw;
+  }
+  #telecom-toggle {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    top: 12px;
+    left: 12px;
+  }
+}
+
 .pr-board-legend {
   display: flex;
   gap: 10px;

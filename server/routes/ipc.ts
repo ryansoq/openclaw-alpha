@@ -82,6 +82,20 @@ export async function handleIpcCommand(
     case "profiles":
       return { ok: true, profiles: ctx.registry.getAll() };
 
+    // ── Platform Stats ────────────────────────────────────────
+    case "platform-stats": {
+      const allProfiles = ctx.registry.getAll();
+      const activeIds = ctx.state.getActiveAgentIds();
+      const msgStats = ctx.messageStore.getStats();
+      return {
+        ok: true,
+        totalUsers: allProfiles.length,
+        onlineUsers: activeIds.size,
+        todayMessages: msgStats.today,
+        totalMessages: msgStats.total,
+      };
+    }
+
     case "profile": {
       const agentId = (args as { agentId?: string })?.agentId;
       if (!agentId) throw new Error("agentId required");

@@ -64,6 +64,20 @@ export class MessageStore {
     return true;
   }
 
+  /** Get the most recent N messages (across all agents) */
+  getRecent(limit = 20): KaspaMessage[] {
+    return this.messages.slice(-limit);
+  }
+
+  /** Get platform message statistics */
+  getStats(): { total: number; today: number } {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayTs = todayStart.getTime();
+    const today = this.messages.filter(m => m.timestamp >= todayTs).length;
+    return { total: this.messages.length, today };
+  }
+
   private load(): void {
     try {
       if (existsSync(MESSAGES_PATH)) {

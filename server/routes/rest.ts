@@ -209,6 +209,30 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/messages/recent — Recent messages (all agents) ─────
+  if (url.startsWith("/api/messages/recent") && method === "GET") {
+    const reqUrl = new URL(req.url ?? "/", "http://localhost");
+    const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "20"), 100);
+    const messages = ctx.messageStore.getRecent(limit);
+    json(res, 200, { ok: true, messages });
+    return true;
+  }
+
+  // ── /api/stats — Platform statistics ──────────────────────
+  if (url === "/api/stats" && method === "GET") {
+    const allProfiles = ctx.registry.getAll();
+    const activeIds = ctx.state.getActiveAgentIds();
+    const msgStats = ctx.messageStore.getStats();
+    json(res, 200, {
+      ok: true,
+      totalUsers: allProfiles.length,
+      onlineUsers: activeIds.size,
+      todayMessages: msgStats.today,
+      totalMessages: msgStats.total,
+    });
+    return true;
+  }
+
   // ── /api/contacts/:agentId — Get agent contacts ─────────────
   if (url.startsWith("/api/contacts/") && method === "GET") {
     const agentId = url.replace("/api/contacts/", "").split("?")[0];

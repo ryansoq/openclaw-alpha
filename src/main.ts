@@ -13,6 +13,7 @@ import { initTaskBoard, handleTaskBoardMessage } from "./ui/task-board.js";
 import { setupPRBoard } from "./ui/pr-board.js";
 import { setupAgentChat } from "./ui/agent-chat.js";
 import { initDashboard, handleDashboardUpdate } from "./ui/dashboard.js";
+import { setupTelecomPanel } from "./ui/telecom-panel.js";
 import { initScreenDisplay, handleScreenUpdate } from "./ui/screen-display.js";
 import type { DashboardAPI } from "./ui/dashboard.js";
 import type { ScreenDisplayAPI } from "./ui/screen-display.js";
@@ -61,6 +62,7 @@ lobsterManager.setGreetingCallback((agentA, agentB) => {
 
 const overlay = setupOverlay();
 const chatLog = setupChatLog();
+const telecomPanel = setupTelecomPanel(serverBaseUrl || window.location.origin);
 
 // ── Telegram Login ─────────────────────────────────────────────
 
@@ -149,6 +151,7 @@ ws.on("connected", async () => {
     const pData = await pResp.json();
     if (pData.profiles) {
       for (const p of pData.profiles) agentNames.set(p.agentId, p.name);
+      telecomPanel.updateAgents(pData.profiles);
     }
   } catch (_) { /* ignore */ }
 
@@ -288,6 +291,7 @@ ws.on("profiles", (_raw) => {
   const data = _raw as { profiles: AgentProfile[] };
   for (const p of data.profiles) agentNames.set(p.agentId, p.name);
   overlay.updateAgentList(data.profiles);
+  telecomPanel.updateAgents(data.profiles);
 });
 
 // Handle room info from server
