@@ -89,6 +89,19 @@ const profilePanel = setupProfilePanel((agentId: string) => {
   }
 });
 
+// When agent is selected from online list, show profile panel
+window.addEventListener("agent:select", ((e: CustomEvent) => {
+  const agentId = e.detail?.agentId;
+  if (agentId) {
+    const profile = overlay.getAgent(agentId);
+    if (profile) {
+      profilePanel.show(profile);
+      const pos = lobsterManager.getPosition(agentId);
+      if (pos) controls.target.set(pos.x, pos.y + 2, pos.z);
+    }
+  }
+}) as EventListener);
+
 // Wire up "Send Message" button in profile panel → open chat overlay
 profilePanel.onSendMessage((targetProfile) => {
   // Use the focused agent or default "anonymous" as sender

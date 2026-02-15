@@ -187,10 +187,18 @@ export function setupProfilePanel(
     window.removeEventListener("keydown", handleEscapeKey);
   }
 
-  // Listen for overlay agent:select events
+  // Listen for overlay agent:select events (from online list clicks)
   window.addEventListener("agent:select", ((e: CustomEvent) => {
     const agentId = e.detail?.agentId;
-    if (agentId) onFocusAgent(agentId);
+    if (agentId) {
+      onFocusAgent(agentId);
+      // Also fetch and show profile
+      const profile = e.detail?.profile;
+      if (profile) {
+        currentProfile = profile;
+        render(profile);
+      }
+    }
   }) as EventListener);
 
   return {
