@@ -358,6 +358,7 @@ export function createBuildings(scene: THREE.Scene): {
     name: "📚 Bookshelf (Left)",
     position: new THREE.Vector3(-20, 0, -18),
     mesh: bookshelfLeft,
+    obstacleRadius: 1.5,
   });
 
   const bookshelfRight = createBookshelf();
@@ -369,6 +370,7 @@ export function createBuildings(scene: THREE.Scene): {
     name: "📚 Bookshelf (Right)",
     position: new THREE.Vector3(20, 0, -18),
     mesh: bookshelfRight,
+    obstacleRadius: 1.5,
   });
 
   // 📋 白板 (後方牆壁前)
