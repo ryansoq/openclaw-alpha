@@ -95,6 +95,15 @@ export class ClientManager {
     return this.cachedClients;
   }
 
+  /** Broadcast a message to all connected clients */
+  broadcast(data: string): void {
+    for (const client of this.getAllClients()) {
+      if (client.ws.readyState === 1) {  // WebSocket.OPEN
+        client.ws.send(data);
+      }
+    }
+  }
+
   get size(): number {
     return this.clients.size;
   }
