@@ -765,25 +765,25 @@ function createPRBoard(): THREE.Group {
   base.position.set(0, 0.05, 0);
   group.add(base);
 
-  // Screen (dark board)
-  const screen = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 0.08), boardMat);
-  screen.position.set(0, 3, 0);
+  // Screen (dark board) — larger for readability
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.2, 0.08), boardMat);
+  screen.position.set(0, 3.1, 0);
   screen.castShadow = true;
   group.add(screen);
 
   // Screen bezel
   const bezelMat = new THREE.MeshStandardMaterial({ color: 0x00bcd4, roughness: 0.5, emissive: 0x004d54, emissiveIntensity: 0.3 });
-  const topBezel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.06, 0.1), bezelMat);
-  topBezel.position.set(0, 3.83, 0);
+  const topBezel = new THREE.Mesh(new THREE.BoxGeometry(3.7, 0.06, 0.1), bezelMat);
+  topBezel.position.set(0, 4.23, 0);
   group.add(topBezel);
-  const bottomBezel = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.06, 0.1), bezelMat);
-  bottomBezel.position.set(0, 2.17, 0);
+  const bottomBezel = new THREE.Mesh(new THREE.BoxGeometry(3.7, 0.06, 0.1), bezelMat);
+  bottomBezel.position.set(0, 1.97, 0);
   group.add(bottomBezel);
 
   // "PR" label via small colored blocks as decoration
   const labelMat = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x00acc1, emissiveIntensity: 0.5 });
   const label = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.1), labelMat);
-  label.position.set(0, 3.95, 0);
+  label.position.set(0, 4.35, 0);
   group.add(label);
 
   group.traverse((child) => { child.userData.buildingId = "pr-board"; });
