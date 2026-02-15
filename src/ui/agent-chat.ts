@@ -199,6 +199,34 @@ export function setupAgentChat(serverUrl: string): AgentChatAPI {
     }
   }
 
+  // Listen for real-time WebSocket messages
+  function connectWs(): void {
+    try {
+      const wsUrl = serverUrl.replace(/^http/, "ws") + "/ws";
+      const ws = new WebSocket(wsUrl);
+      ws.addEventListener("message", (ev) => {
+        try {
+          const data = JSON.parse(ev.data as string);
+          if (data.type === "newMessage" && visible && currentTarget) {
+            // Refresh if the message involves current conversation
+            const e = data.event;
+            if (
+              (e?.from === currentMyId && data.agentId === currentTarget.agentId) ||
+              (e?.from === currentTarget.agentId && data.agentId === currentMyId)
+            ) {
+              loadMessages();
+            }
+          }
+        } catch { /* ignore */ }
+      });
+      ws.addEventListener("close", () => {
+        // Reconnect after 5s
+        setTimeout(connectWs, 5000);
+      });
+    } catch { /* WS not available, polling still works */ }
+  }
+  connectWs();
+
   return {
     open,
     close,

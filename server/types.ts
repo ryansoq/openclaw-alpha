@@ -26,6 +26,7 @@ export interface AgentProfile {
   webhookUrl?: string;
   webhookHeaders?: Record<string, string>;
   kaspaAddress?: string;
+  notifyMethod?: 'webhook' | 'ws' | 'poll';  // default: 'poll'
   contacts?: AgentContact[];
   joinedAt: number;
   lastSeen: number;

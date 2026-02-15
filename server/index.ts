@@ -19,6 +19,8 @@ import { loadRoomConfig } from "./room-config.js";
 import { createRoomInfoGetter } from "./room-info.js";
 import { handleRestRoute } from "./routes/rest.js";
 import { handleIpcCommand } from "./routes/ipc.js";
+import { NotificationDispatcher } from "./notification.js";
+import { TxListener } from "./tx-listener.js";
 import { json, readBody } from "./http-utils.js";
 import type { ServerContext } from "./context.js";
 import type { WorldMessage } from "./types.js";
@@ -44,11 +46,20 @@ const dashboardStore = new DashboardStore();
 const screenStore = new ScreenStore();
 const messageStore = new (await import("./message-store.js")).MessageStore();
 
+// ── Notification & TX Listener ─────────────────────────────────
+
+// ClientManager needs to exist before NotificationDispatcher — defer init
+let notificationDispatcher: NotificationDispatcher;
+let txListener: TxListener;
+
 // ── Game engine ─────────────────────────────────────────────────
 
 const spatialGrid = new SpatialGrid(10);
 const commandQueue = new CommandQueue();
 const clientManager = new ClientManager();
+
+notificationDispatcher = new NotificationDispatcher(registry, clientManager);
+txListener = new TxListener(registry, messageStore, notificationDispatcher);
 
 commandQueue.setObstacles([
   { x: -22, z: 0, radius: 2 },     // moltbook
@@ -156,6 +167,7 @@ async function main() {
   });
 
   gameLoop.start();
+  txListener.start();
 
   // ── Heartbeat scanner: auto-idle & auto-kick ──────────────
   const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
@@ -185,6 +197,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
   process.on(sig, () => {
     console.log(`\n[server] ${sig} received, shutting down...`);
     gameLoop.stop();
+    txListener.stop();
     eventStore.close();
     nostr.close();
     server.close();
