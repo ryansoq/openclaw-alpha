@@ -104,10 +104,23 @@ window.addEventListener("agent:select", ((e: CustomEvent) => {
 
 // Wire up "Send Message" button in profile panel → open chat overlay
 profilePanel.onSendMessage((targetProfile) => {
-  // Use the focused agent or default "anonymous" as sender
   const myId = focusAgent || "anonymous";
   profilePanel.hide();
   agentChat.open(myId, targetProfile);
+});
+
+// Click contact in someone's address book → open their chat with that contact
+profilePanel.onContactClick((ownerAgentId, contact) => {
+  // Build a minimal profile for the contact
+  const targetProfile: AgentProfile = {
+    agentId: contact.name.toLowerCase().replace(/[^a-z0-9]/g, ""),
+    name: contact.name,
+    kaspaAddress: contact.kaspaAddress,
+    pubkey: "", bio: "", capabilities: [], color: "#999",
+    joinedAt: 0, lastSeen: 0,
+  };
+  profilePanel.hide();
+  agentChat.open(ownerAgentId, targetProfile);
 });
 
 // ── WebSocket connection ───────────────────────────────────────

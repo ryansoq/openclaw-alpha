@@ -4,6 +4,7 @@ interface ProfilePanelAPI {
   show(profile: AgentProfile): void;
   hide(): void;
   onSendMessage(handler: (profile: AgentProfile) => void): void;
+  onContactClick(handler: (ownerAgentId: string, contact: { name: string; kaspaAddress: string }) => void): void;
 }
 
 /**
@@ -16,6 +17,7 @@ export function setupProfilePanel(
   const container = document.getElementById("profile-panel")!;
   let currentProfile: AgentProfile | null = null;
   let sendMessageHandler: ((profile: AgentProfile) => void) | null = null;
+  let contactClickHandler: ((ownerAgentId: string, contact: { name: string; kaspaAddress: string }) => void) | null = null;
 
   function render(profile: AgentProfile): void {
     // Clear previous content safely
@@ -155,6 +157,7 @@ export function setupProfilePanel(
       for (const contact of contacts) {
         const row = document.createElement("div");
         row.className = "profile-contact-row";
+        row.style.cursor = "pointer";
 
         const nameSpan = document.createElement("span");
         nameSpan.className = "profile-contact-name";
@@ -167,6 +170,13 @@ export function setupProfilePanel(
         addrSpan.textContent = `${addr.slice(0, 10)}...${addr.slice(-6)}`;
         addrSpan.title = addr;
         row.appendChild(addrSpan);
+
+        // Click contact → open chat with that contact
+        row.addEventListener("click", () => {
+          if (contactClickHandler) {
+            contactClickHandler(profile.agentId, contact);
+          }
+        });
 
         contactsList.appendChild(row);
       }
@@ -209,6 +219,9 @@ export function setupProfilePanel(
     hide,
     onSendMessage(handler: (profile: AgentProfile) => void) {
       sendMessageHandler = handler;
+    },
+    onContactClick(handler: (ownerAgentId: string, contact: { name: string; kaspaAddress: string }) => void) {
+      contactClickHandler = handler;
     },
   };
 }
