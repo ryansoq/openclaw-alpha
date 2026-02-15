@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ServerContext } from "../context.js";
 import type { WorldMessage, JoinMessage, PositionMessage, AgentSkillDeclaration } from "../types.js";
+import { getZoneForStatus, getActionForStatus, isValidStatus } from "../status-zone.js";
 
 /**
  * Handle IPC commands. Called from POST /ipc endpoint.
@@ -17,7 +18,7 @@ export async function handleIpcCommand(
 
   // Commands that require a registered agentId + valid token
   const agentCommands = new Set([
-    "world-move", "world-action", "world-chat", "world-whisper", "world-emote", "world-leave",
+    "world-move", "world-action", "world-chat", "world-whisper", "world-emote", "world-leave", "world-status",
   ]);
   if (agentCommands.has(command)) {
     const agentId = (args as { agentId?: string })?.agentId;
@@ -149,6 +150,29 @@ export async function handleIpcCommand(
       };
       ctx.commandQueue.enqueue(msg);
       return { ok: true };
+    }
+
+    case "world-status": {
+      const a = args as { agentId: string; status: string };
+      if (!a?.agentId) throw new Error("agentId required");
+      if (!a?.status || !isValidStatus(a.status)) {
+        throw new Error("Valid status required: coding, thinking, chatting, reviewing, idle, break, arriving, presenting");
+      }
+      const zone = getZoneForStatus(a.agentId, a.status);
+      const posMsg: WorldMessage = {
+        worldType: "position", agentId: a.agentId,
+        x: zone.x, y: zone.y, z: zone.z, rotation: zone.rotation,
+        timestamp: Date.now(),
+      };
+      ctx.commandQueue.enqueue(posMsg);
+      const action = getActionForStatus(a.status);
+      const actMsg: WorldMessage = {
+        worldType: "action", agentId: a.agentId,
+        action: action as "idle" | "walk" | "wave" | "talk",
+        timestamp: Date.now(),
+      };
+      ctx.commandQueue.enqueue(actMsg);
+      return { ok: true, status: a.status, zone: { x: zone.x, z: zone.z } };
     }
 
     case "world-leave": {

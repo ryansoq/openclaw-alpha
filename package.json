@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "nostr-tools": "^2.10.0",
+    "puppeteer-core": "^24.37.3",
     "three": "^0.170.0",
     "ws": "^8.18.0"
   },
