@@ -310,6 +310,39 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/broadcast — Relay signed TX to Kaspa network ──────
+  if (url === "/api/broadcast" && method === "POST") {
+    try {
+      const body = (await readBody(req)) as { signedTx?: string; network?: string };
+      if (!body.signedTx) {
+        json(res, 400, { ok: false, error: "signedTx required (hex-encoded signed transaction)" });
+        return true;
+      }
+      const network = body.network || "testnet";
+
+      // Call broadcast_tx.py to relay via kaspad
+      const { execSync } = await import("node:child_process");
+      const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
+      const input = JSON.stringify({ tx: body.signedTx });
+      const result = execSync(
+        `echo '${input.replace(/'/g, "'\\''")}' | python3 "${scriptPath}" --network ${network}`,
+        { timeout: 30_000, encoding: "utf-8" }
+      );
+      const parsed = JSON.parse(result.trim());
+
+      if (parsed.success) {
+        console.log(`[broadcast] TX relayed: ${parsed.tx_id} (${network})`);
+        json(res, 200, { ok: true, tx_id: parsed.tx_id, network });
+      } else {
+        json(res, 400, { ok: false, error: parsed.error || "Broadcast failed" });
+      }
+    } catch (err) {
+      console.error(`[broadcast] Error:`, err);
+      json(res, 500, { ok: false, error: `Broadcast error: ${String(err).slice(0, 200)}` });
+    }
+    return true;
+  }
+
   // ── /health — Server health check ─────────────────────────
   if (method === "GET" && url === "/health") {
     json(res, 200, {
