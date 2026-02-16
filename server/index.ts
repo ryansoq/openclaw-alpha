@@ -24,6 +24,7 @@ import { handleRestRoute } from "./routes/rest.js";
 import { handleIpcCommand } from "./routes/ipc.js";
 import { NotificationDispatcher } from "./notification.js";
 import { TxListener } from "./tx-listener.js";
+import { SubscriptionManager } from "./ws-subscribe.js";
 import { json, readBody } from "./http-utils.js";
 import type { ServerContext } from "./context.js";
 import type { WorldMessage } from "./types.js";
@@ -133,6 +134,11 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 
   json(res, 404, { error: "Not found" });
 });
+
+// ── WebSocket subscription (external agents) ──────────────────
+
+const subscriptionManager = new SubscriptionManager(server);
+notificationDispatcher.setSubscriptionManager(subscriptionManager);
 
 // ── WebSocket bridge ───────────────────────────────────────────
 

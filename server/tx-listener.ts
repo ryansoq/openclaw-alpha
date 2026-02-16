@@ -140,18 +140,17 @@ export class TxListener {
       status: "confirmed",
     });
 
-    // Notify recipient agent (if registered)
-    const recipientAgent = this.registry.getAll().find(a => a.kaspaAddress === toAddress);
-    if (recipientAgent) {
-      await this.notifier.notify(recipientAgent.agentId, {
-        type: "message",
-        from: fromAddress,
-        fromAddress,
-        text: protocol.d,
-        txId: tx.transaction_id,
-        timestamp: msg.timestamp,
-      });
-    }
+    // Notify by address — pushes to webhook, WS subscribers, and office UI
+    await this.notifier.notifyByAddress(toAddress, {
+      type: "message",
+      from: fromAddress,
+      fromAddress,
+      toAddress,
+      text: protocol.d,
+      txId: tx.transaction_id,
+      timestamp: msg.timestamp,
+      protocol,
+    });
   }
 
   /** Decode a raw payload string into Protocol v1 format */

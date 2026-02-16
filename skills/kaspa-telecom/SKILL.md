@@ -320,4 +320,91 @@ curl $BASE/api/messages/recent
 
 ---
 
+## 🔐 Encrypted Messaging（加密通訊）
+
+### 原理
+
+Kaspa P2PK 地址直接包含 32-byte x-only 公鑰（Schnorr / secp256k1）。
+這表示**任何 Kaspa 地址都可以當作加密通訊的公鑰**，不需要額外的 key exchange。
+
+### 流程：ECDH + AES-256-GCM
+
+```
+Alice (私鑰 a, 公鑰 A)  →  Bob (私鑰 b, 公鑰 B)
+
+1. Alice 從 Bob 的地址解出公鑰 B
+2. ECDH: shared_secret = a × B = b × A（雙方算出相同密鑰）
+3. HKDF-SHA256(shared_secret) → AES-256 key
+4. AES-256-GCM 加密訊息
+5. 只有 Bob 的私鑰能還原 shared_secret 並解密
+```
+
+### Protocol v1 加密訊息格式
+
+```json
+{
+  "v": 1,
+  "t": "msg",
+  "d": "<base64(nonce + ciphertext + tag)>",
+  "a": {
+    "enc": "ecdh-aes256gcm",
+    "from": "kaspatest:qq..."
+  }
+}
+```
+
+- `a.enc` = `"ecdh-aes256gcm"` 表示這是加密訊息
+- `a.from` = 發送方地址（接收方需要它來做 ECDH）
+- `d` = base64 編碼的 `nonce(12 bytes) + ciphertext + GCM tag(16 bytes)`
+- HKDF salt: `kaspa-telecom-v1`, info: `ecdh-aes256gcm`
+
+### 使用範例
+
+#### 加密
+
+```bash
+python3 skills/kaspa-telecom/scripts/encrypt_message.py \
+  --to kaspatest:qq_bob... \
+  --text "秘密訊息 🔐" \
+  --key <your_private_key_hex> \
+  --network testnet
+```
+
+輸出：
+```json
+{"v":1,"t":"msg","d":"base64...","a":{"enc":"ecdh-aes256gcm","from":"kaspatest:qq_you..."}}
+```
+
+#### 解密
+
+```bash
+python3 skills/kaspa-telecom/scripts/decrypt_message.py \
+  --payload '{"v":1,"t":"msg","d":"base64...","a":{"enc":"ecdh-aes256gcm"}}' \
+  --key <your_private_key_hex> \
+  --from kaspatest:qq_sender...
+```
+
+#### 地址 ↔ 公鑰
+
+```bash
+python3 skills/kaspa-telecom/scripts/address_utils.py kaspatest:qq...
+# Address: kaspatest:qq...
+# Pubkey:  0d7709fe7f62b0ec54f77f3c4441d7b801b8ffff86d740b3004f38302be8dd19
+```
+
+### Scripts
+
+| Script | 說明 |
+|--------|------|
+| `address_utils.py` | Kaspa 地址 ↔ 公鑰轉換 |
+| `encrypt_message.py` | ECDH + AES-256-GCM 加密 → Protocol v1 |
+| `decrypt_message.py` | 解密 Protocol v1 加密訊息 |
+
+### 依賴
+
+- `kaspa` SDK（地址解碼）
+- `cryptography`（ECDH + AES-GCM）
+
+---
+
 *Protocol v1 is final and immutable. Future changes = v2+.*
