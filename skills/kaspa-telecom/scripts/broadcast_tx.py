@@ -85,8 +85,31 @@ def reconstruct_transaction(tx_dict: dict) -> Transaction:
     )
 
 
-async def broadcast(tx_dict: dict, network: str = "testnet") -> dict:
-    """Reconstruct and broadcast a signed transaction."""
+def broadcast_rest(tx_dict: dict, network: str = "testnet") -> dict:
+    """Broadcast via public REST API (no kaspad needed)."""
+    import urllib.request
+    
+    base = "https://api-tn10.kaspa.org" if network == "testnet" else "https://api.kaspa.org"
+    url = f"{base}/transactions"
+    
+    payload = json.dumps({"transaction": tx_dict}).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={
+        "Content-Type": "application/json",
+        "User-Agent": "KaspaTelecom/1.0",
+    })
+    
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read())
+            tx_id = result if isinstance(result, str) else result.get("transactionId", str(result))
+            return {"success": True, "tx_id": tx_id, "network": network, "source": "rest-api"}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return {"success": False, "error": f"REST API {e.code}: {body[:200]}"}
+
+
+async def broadcast_rpc(tx_dict: dict, network: str = "testnet") -> dict:
+    """Broadcast via kaspad RPC (requires local node or resolver)."""
     net_map = {"testnet": "testnet-10", "mainnet": "mainnet"}
     net_id = net_map.get(network, network)
 
@@ -102,9 +125,18 @@ async def broadcast(tx_dict: dict, network: str = "testnet") -> dict:
             "allow_orphan": False,
         })
         tx_id = result if isinstance(result, str) else str(result)
-        return {"success": True, "tx_id": tx_id, "network": network}
+        return {"success": True, "tx_id": tx_id, "network": network, "source": "rpc"}
     finally:
         await client.disconnect()
+
+
+def broadcast(tx_dict: dict, network: str = "testnet") -> dict:
+    """Try RPC first, fall back to REST API."""
+    try:
+        return asyncio.run(broadcast_rpc(tx_dict, network))
+    except Exception as rpc_err:
+        print(f"[broadcast] RPC failed ({rpc_err}), trying REST API...", file=sys.stderr)
+        return broadcast_rest(tx_dict, network)
 
 
 def parse_input(raw: str) -> dict:
@@ -136,7 +168,7 @@ def main():
         sys.exit(1)
 
     try:
-        result = asyncio.run(broadcast(tx_dict, args.network))
+        result = broadcast(tx_dict, args.network)
         print(json.dumps(result))
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
