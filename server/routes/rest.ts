@@ -387,8 +387,8 @@ export async function handleRestRoute(
   if (url.startsWith("/api/contacts/") && method === "GET") {
     const agentId = url.replace("/api/contacts/", "").split("?")[0];
     const profile = ctx.registry.get(agentId);
-    if (!profile) return json(res, { error: "Agent not found" }, 404);
-    return json(res, { ok: true, contacts: profile.contacts ?? [] });
+    if (!profile) { json(res, 404, { error: "Agent not found" }); return true; }
+    json(res, 200, { ok: true, contacts: profile.contacts ?? [] }); return true;
   }
 
   // ── /api/messages/:address — Get messages for a Kaspa address ────

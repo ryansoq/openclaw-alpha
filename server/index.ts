@@ -132,6 +132,26 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     }
   }
 
+  // ── Static file serving (dist/) ─────────────────────────────
+  const { resolve, extname } = await import("node:path");
+  const { readFile } = await import("node:fs/promises");
+  const MIME: Record<string, string> = {
+    ".html": "text/html", ".js": "application/javascript", ".css": "text/css",
+    ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg",
+    ".svg": "image/svg+xml", ".ico": "image/x-icon", ".woff2": "font/woff2",
+  };
+  const distDir = resolve(import.meta.dirname ?? ".", "../dist");
+  const filePath = resolve(distDir, url === "/" ? "index.html" : url.slice(1).split("?")[0]);
+  if (filePath.startsWith(distDir)) {
+    try {
+      const data = await readFile(filePath);
+      const mime = MIME[extname(filePath)] ?? "application/octet-stream";
+      res.writeHead(200, { "Content-Type": mime, "Access-Control-Allow-Origin": "*" });
+      res.end(data);
+      return;
+    } catch {}
+  }
+
   json(res, 404, { error: "Not found" });
 });
 
