@@ -385,30 +385,31 @@ export async function handleIpcCommand(
       if (!toProfile) throw new Error(`Agent '${a.to}' not found`);
 
       const text = a.text.slice(0, 500);
+      const fromAddr = fromProfile.kaspaAddress ?? "unknown";
+      const toAddr = toProfile.kaspaAddress ?? "unknown";
+
       const msg = ctx.messageStore.add({
-        from: a.from, to: a.to, text, timestamp: Date.now(), status: "pending",
+        fromAddress: fromAddr,
+        toAddress: toAddr,
+        protocol: { v: 1, t: "msg", d: text, a: {} },
+        timestamp: Date.now(),
+        txId: "",
+        status: "confirmed",
       });
 
       // TODO: Send actual on-chain TX when private key management is ready
-      const fromAddr = fromProfile.kaspaAddress;
-      const toAddr = toProfile.kaspaAddress;
-      if (fromAddr && toAddr) {
-        console.log(`[kaspa-msg] Would send TX from ${fromAddr} to ${toAddr}: ${text}`);
-      } else {
-        console.log(`[kaspa-msg] Mock send (no kaspa addresses): ${a.from} → ${a.to}: ${text}`);
-      }
-      ctx.messageStore.updateStatus(msg.id, "sent");
+      console.log(`[kaspa-msg] Mock send: ${fromAddr} → ${toAddr}: ${text}`);
 
-      return { ok: true, message: { ...msg, status: "sent" } };
+      return { ok: true, message: msg };
     }
 
     case "kaspa-messages": {
-      const a = args as { agentId?: string; withAgent?: string; limit?: number };
-      if (!a?.agentId) throw new Error("agentId required");
+      const a = args as { address?: string; agentId?: string; limit?: number; since?: number };
+      const address = a?.address ?? a?.agentId;
+      if (!address) throw new Error("address required");
       const limit = Math.min(Number(a.limit ?? 50), 200);
-      const messages = a.withAgent
-        ? ctx.messageStore.getConversation(a.agentId, a.withAgent, limit)
-        : ctx.messageStore.getForAgent(a.agentId, limit);
+      const since = Number(a.since ?? 0);
+      const messages = ctx.messageStore.getForAddress(address, limit, since);
       return { ok: true, messages };
     }
 

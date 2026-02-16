@@ -3,12 +3,12 @@ import { resolve } from "node:path";
 
 export interface KaspaMessage {
   id: string;
-  from: string;
-  to: string;
-  text: string;
+  fromAddress: string;  // sender kaspa address (or "unknown")
+  toAddress: string;    // recipient kaspa address
+  protocol: { v: number; t: string; d: string; a: Record<string, unknown> };
   timestamp: number;
-  txId?: string;       // on-chain TX ID (empty when mocked)
-  status: "pending" | "sent" | "confirmed" | "failed";
+  txId: string;
+  status: "confirmed";
 }
 
 const MESSAGES_PATH = resolve(process.cwd(), "messages.json");
@@ -29,7 +29,6 @@ export class MessageStore {
       id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     };
     this.messages.push(full);
-    // Keep max 10000 messages in memory
     if (this.messages.length > 10000) {
       this.messages = this.messages.slice(-5000);
     }
@@ -37,34 +36,17 @@ export class MessageStore {
     return full;
   }
 
-  /** Get messages involving an agent (sent or received) */
-  getForAgent(agentId: string, limit = 100): KaspaMessage[] {
-    return this.messages
-      .filter(m => m.from === agentId || m.to === agentId)
-      .slice(-limit);
-  }
-
-  /** Get conversation between two agents */
-  getConversation(agentA: string, agentB: string, limit = 50): KaspaMessage[] {
+  /** Get messages involving an address (sent or received) */
+  getForAddress(address: string, limit = 100, since = 0): KaspaMessage[] {
     return this.messages
       .filter(m =>
-        (m.from === agentA && m.to === agentB) ||
-        (m.from === agentB && m.to === agentA)
+        (m.fromAddress === address || m.toAddress === address) &&
+        m.timestamp >= since
       )
       .slice(-limit);
   }
 
-  /** Update message status (e.g. when TX confirms) */
-  updateStatus(id: string, status: KaspaMessage["status"], txId?: string): boolean {
-    const msg = this.messages.find(m => m.id === id);
-    if (!msg) return false;
-    msg.status = status;
-    if (txId) msg.txId = txId;
-    this.scheduleSave();
-    return true;
-  }
-
-  /** Get the most recent N messages (across all agents) */
+  /** Get the most recent N messages (across all addresses) */
   getRecent(limit = 20): KaspaMessage[] {
     return this.messages.slice(-limit);
   }
