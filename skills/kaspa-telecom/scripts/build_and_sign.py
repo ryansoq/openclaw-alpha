@@ -84,9 +84,10 @@ async def build_and_sign(
 
         signed_txs = []
         for pending_tx in generator:
-            # Sign all inputs — pass enough keys for every input
-            # Use a large number since sign() ignores extras
-            pending_tx.sign([private_key] * 100)
+            # Sign all inputs — create a fresh PrivateKey for each input
+            tx_inputs = pending_tx.transaction.serialize_to_dict().get("inputs", [])
+            keys = [PrivateKey(private_key_hex) for _ in tx_inputs] or [PrivateKey(private_key_hex)]
+            pending_tx.sign(keys)
             tx = pending_tx.transaction
             tx_dict = tx.serialize_to_dict()
             signed_txs.append(tx_dict)
