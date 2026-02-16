@@ -344,21 +344,24 @@ export async function handleRestRoute(
   }
 
   // ── /api/broadcast — Relay signed TX to Kaspa network ──────
+  // Accepts: {signedTx: "hex"} or {transaction: {...dict}} or {signed_txs: [{...}]}
   if (url === "/api/broadcast" && method === "POST") {
     try {
-      const body = (await readBody(req)) as { signedTx?: string; network?: string };
-      if (!body.signedTx) {
-        json(res, 400, { ok: false, error: "signedTx required (hex-encoded signed transaction)" });
+      const body = (await readBody(req)) as Record<string, unknown>;
+      const txData = body.signedTx || body.transaction || body.signed_txs || body.tx;
+      if (!txData) {
+        json(res, 400, { ok: false, error: "Provide signedTx (hex), transaction (dict), or signed_txs (array)" });
         return true;
       }
-      const network = body.network || "testnet";
+      const network = (body.network as string) || "testnet";
 
-      // Call broadcast_tx.py to relay via kaspad
+      // Call broadcast_tx.py — it handles hex, dict, and build_and_sign output
       const { execSync } = await import("node:child_process");
       const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
-      const input = JSON.stringify({ tx: body.signedTx });
+      const input = JSON.stringify(body);
+      const escaped = input.replace(/'/g, "'\\''");
       const result = execSync(
-        `echo '${input.replace(/'/g, "'\\''")}' | python3 "${scriptPath}" --network ${network}`,
+        `echo '${escaped}' | python3 "${scriptPath}" --network ${network}`,
         { timeout: 30_000, encoding: "utf-8" }
       );
       const parsed = JSON.parse(result.trim());
