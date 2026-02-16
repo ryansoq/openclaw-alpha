@@ -473,16 +473,15 @@ export async function handleRestRoute(
         return true;
       }
 
-      // TX dedup — derive an ID for replay protection
-      const txId = (body.tx_id as string) || (typeof txData === "string" ? txData.slice(0, 64) : JSON.stringify(txData).slice(0, 128));
-      if (!trackTxId(txId)) {
-        json(res, 409, { ok: false, error: "TX already broadcast" });
-        return true;
-      }
-
       const network = (body.network as string) || "testnet";
       if (!["testnet", "mainnet"].includes(network)) {
         json(res, 400, { ok: false, error: "Invalid network (testnet or mainnet)" }); return true;
+      }
+
+      // Pre-check: if client provides tx_id, dedup early
+      if (body.tx_id && !trackTxId(body.tx_id as string)) {
+        json(res, 409, { ok: false, error: "TX already broadcast" });
+        return true;
       }
 
       // Call broadcast_tx.py — uses kaspad wRPC directly with dict format
@@ -496,6 +495,8 @@ export async function handleRestRoute(
       const parsed = JSON.parse(result.trim());
 
       if (parsed.success) {
+        // Track real tx_id from kaspad response for replay protection
+        trackTxId(parsed.tx_id);
         console.log(`[broadcast] TX relayed: ${parsed.tx_id} (${network})`);
         json(res, 200, { ok: true, tx_id: parsed.tx_id, network });
       } else {

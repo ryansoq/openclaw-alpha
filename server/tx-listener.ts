@@ -107,7 +107,7 @@ export class TxListener {
 
   /** Get TX list for an address (no payload in this response) */
   private async fetchTxList(address: string): Promise<KaspaTxBrief[]> {
-    const url = `${KASPA_API}/addresses/${address}/full-transactions?limit=20&resolve_previous_outpoints=light`;
+    const url = `${KASPA_API}/addresses/${address}/full-transactions?limit=20&resolve_previous_outpoints=full`;
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(15000),
       headers: FETCH_HEADERS,
@@ -119,7 +119,7 @@ export class TxListener {
 
   /** Fetch individual TX to get payload */
   private async fetchTxDetail(txId: string): Promise<KaspaTxFull | null> {
-    const url = `${KASPA_API}/transactions/${txId}?inputs=true&outputs=true&resolve_previous_outpoints=light`;
+    const url = `${KASPA_API}/transactions/${txId}?inputs=true&outputs=true&resolve_previous_outpoints=full`;
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(10000),
       headers: FETCH_HEADERS,
