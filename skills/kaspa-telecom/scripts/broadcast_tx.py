@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
 """
-Kaspa Telecom — Broadcast a signed TX via kaspad wRPC.
+Kaspa Telecom — Broadcast a signed TX via kaspa SDK.
 
-Accepts serialize_to_dict() output directly.
-Connects to local kaspad wRPC (ws://127.0.0.1:17210).
+Accepts serialize_to_dict() JSON, reconstructs Transaction object,
+and submits via SDK's submit_transaction.
 
 Usage:
-  # From build_and_sign.py output
-  python3 build_and_sign.py ... | python3 broadcast_tx.py
-
-  # Direct dict input
-  echo '{"transaction": {...}}' | python3 broadcast_tx.py
-
-  # With custom wRPC endpoint
-  python3 broadcast_tx.py --rpc ws://127.0.0.1:17210
+  python3 build_and_sign.py ... | python3 broadcast_tx.py --network testnet
+  echo '{"transaction": {...}}' | python3 broadcast_tx.py --network testnet
 """
 
 import argparse
@@ -22,98 +16,103 @@ import json
 import sys
 
 try:
-    import websockets
+    from kaspa import (
+        RpcClient, Resolver, Hash,
+        Transaction, TransactionInput, TransactionOutput,
+        TransactionOutpoint, ScriptPublicKey,
+    )
 except ImportError:
-    print(json.dumps({"success": False, "error": "websockets not installed. pip install websockets"}))
+    print(json.dumps({"success": False, "error": "kaspa SDK not installed"}))
     sys.exit(1)
 
 
-def convert_to_rpc_format(tx_dict: dict) -> dict:
-    """Convert serialize_to_dict() output to kaspad submitTransaction format."""
+def reconstruct_transaction(tx_dict: dict) -> Transaction:
+    """Reconstruct a Transaction object from serialize_to_dict() output."""
     inputs = []
     for inp in tx_dict.get("inputs", []):
-        rpc_input = {
-            "previousOutpoint": {
-                "transactionId": inp["transactionId"],
-                "index": inp["index"],
-            },
-            "signatureScript": inp.get("signatureScript", ""),
-            "sequence": inp.get("sequence", 0),
-            "sigOpCount": inp.get("sigOpCount", 1),
-        }
-        inputs.append(rpc_input)
+        outpoint = TransactionOutpoint(
+            Hash(inp["transactionId"]),
+            inp["index"],
+        )
+        ti = TransactionInput(
+            outpoint,
+            inp.get("signatureScript", ""),
+            inp.get("sequence", 0),
+            inp.get("sigOpCount", 1),
+        )
+        inputs.append(ti)
 
     outputs = []
     for out in tx_dict.get("outputs", []):
-        rpc_output = {
-            "amount": out["value"],
-            "scriptPublicKey": {
-                "version": 0,
-                "scriptPublicKey": out["scriptPublicKey"],
-            },
-        }
-        # If scriptPublicKey is already a dict with version
-        if isinstance(out.get("scriptPublicKey"), dict):
-            rpc_output["scriptPublicKey"] = out["scriptPublicKey"]
-        outputs.append(rpc_output)
+        spk_data = out.get("scriptPublicKey", "")
+        if isinstance(spk_data, dict):
+            spk = ScriptPublicKey(
+                spk_data.get("version", 0),
+                spk_data.get("scriptPublicKey", ""),
+            )
+        else:
+            spk = ScriptPublicKey(0, spk_data)
+        to = TransactionOutput(out["value"], spk)
+        outputs.append(to)
 
-    return {
-        "version": tx_dict.get("version", 0),
-        "inputs": inputs,
-        "outputs": outputs,
-        "lockTime": tx_dict.get("lockTime", 0),
-        "subnetworkId": tx_dict.get("subnetworkId", "0000000000000000000000000000000000000000"),
-        "gas": tx_dict.get("gas", 0),
-        "payload": tx_dict.get("payload", ""),
-    }
+    # subnetworkId is 20 bytes = 40 hex chars
+    sub_id = tx_dict.get("subnetworkId", "0000000000000000000000000000000000000000")
+    # Ensure 40 hex chars
+    if len(sub_id) > 40:
+        sub_id = sub_id[:40]
+
+    # payload as hex string
+    payload = tx_dict.get("payload", "")
+
+    return Transaction(
+        tx_dict.get("version", 0),
+        inputs,
+        outputs,
+        tx_dict.get("lockTime", 0),
+        sub_id,
+        tx_dict.get("gas", 0),
+        payload,
+        tx_dict.get("mass", 0),
+    )
 
 
-async def broadcast(tx_dict: dict, rpc_url: str = "ws://127.0.0.1:17210") -> dict:
-    """Broadcast a signed transaction via kaspad wRPC."""
-    rpc_tx = convert_to_rpc_format(tx_dict)
+async def broadcast(tx_dict: dict, network: str = "testnet") -> dict:
+    """Reconstruct and broadcast a signed transaction."""
+    net_map = {"testnet": "testnet-10", "mainnet": "mainnet"}
+    net_id = net_map.get(network, network)
 
-    request = {
-        "id": 1,
-        "method": "submitTransaction",
-        "params": {
-            "transaction": rpc_tx,
+    tx = reconstruct_transaction(tx_dict)
+    print(f"[broadcast] Reconstructed TX: {tx.id}", file=sys.stderr)
+
+    client = RpcClient(resolver=Resolver(), network_id=net_id)
+    await client.connect()
+
+    try:
+        result = await client.submit_transaction({
+            "transaction": tx,
             "allowOrphan": False,
-        },
-    }
-
-    async with websockets.connect(rpc_url, open_timeout=10) as ws:
-        await ws.send(json.dumps(request))
-        response = json.loads(await ws.recv())
-
-    if "error" in response and response["error"]:
-        return {"success": False, "error": str(response["error"])}
-
-    tx_id = response.get("result", {}).get("transactionId", response.get("result", ""))
-    return {
-        "success": True,
-        "tx_id": tx_id if isinstance(tx_id, str) else str(tx_id),
-    }
+        })
+        tx_id = result if isinstance(result, str) else str(result)
+        return {"success": True, "tx_id": tx_id, "network": network}
+    finally:
+        await client.disconnect()
 
 
 def parse_input(raw: str) -> dict:
-    """Parse input: build_and_sign output, transaction dict, etc."""
+    """Parse input: build_and_sign output or direct tx dict."""
     data = json.loads(raw)
-
-    # build_and_sign.py output
     if "signed_txs" in data:
         return data["signed_txs"][0]
-    # Wrapped in transaction key
     if "transaction" in data and isinstance(data["transaction"], dict):
         return data["transaction"]
-    # Direct tx dict
     if "inputs" in data or "version" in data:
         return data
-    raise ValueError("Unrecognized TX format")
+    raise ValueError("Unrecognized TX format. Provide serialize_to_dict() output.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Broadcast signed TX via kaspad wRPC")
-    parser.add_argument("--rpc", default="ws://127.0.0.1:17210", help="kaspad wRPC URL")
+    parser = argparse.ArgumentParser(description="Broadcast signed TX")
+    parser.add_argument("--network", choices=["mainnet", "testnet"], default="testnet")
     args = parser.parse_args()
 
     stdin_data = sys.stdin.read().strip()
@@ -128,7 +127,7 @@ def main():
         sys.exit(1)
 
     try:
-        result = asyncio.run(broadcast(tx_dict, args.rpc))
+        result = asyncio.run(broadcast(tx_dict, args.network))
         print(json.dumps(result))
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
