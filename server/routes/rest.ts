@@ -507,6 +507,7 @@ export async function handleRestRoute(
       // Call broadcast_tx.py — uses kaspad wRPC directly with dict format
       const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
       const input = JSON.stringify(body);
+      console.log(`[broadcast] Input keys: ${Object.keys(body).join(', ')}, txData type: ${typeof txData}`);
       let stdout: string;
       try {
         const result = await execFile(
@@ -519,7 +520,7 @@ export async function handleRestRoute(
         const e = execErr as { stdout?: string; stderr?: string; message?: string };
         stdout = e.stdout ?? "";
         if (!stdout.trim()) {
-          console.error(`[broadcast] Script error:`, e.stderr || e.message);
+          console.error(`[broadcast] Script error — stderr:`, e.stderr, `msg:`, e.message);
           json(res, 500, { ok: false, error: "Broadcast script error" });
           return true;
         }

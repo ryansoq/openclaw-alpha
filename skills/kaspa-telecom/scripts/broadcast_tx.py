@@ -30,9 +30,17 @@ def reconstruct_transaction(tx_dict: dict) -> Transaction:
     """Reconstruct a Transaction object from serialize_to_dict() output."""
     inputs = []
     for inp in tx_dict.get("inputs", []):
+        # Handle both flat and nested previousOutpoint formats
+        if "previousOutpoint" in inp:
+            po = inp["previousOutpoint"]
+            tx_id = po["transactionId"]
+            idx = po["index"]
+        else:
+            tx_id = inp["transactionId"]
+            idx = inp["index"]
         outpoint = TransactionOutpoint(
-            Hash(inp["transactionId"]),
-            inp["index"],
+            Hash(tx_id),
+            idx,
         )
         ti = TransactionInput(
             outpoint,
@@ -61,7 +69,8 @@ def reconstruct_transaction(tx_dict: dict) -> Transaction:
             version = int(spk_data[:4], 16) if len(spk_data) >= 4 else 0
             script = spk_data[4:] if len(spk_data) > 4 else spk_data
             spk = ScriptPublicKey(version, script)
-        to = TransactionOutput(out["value"], spk)
+        amount = out.get("value") or out.get("amount", 0)
+        to = TransactionOutput(amount, spk)
         outputs.append(to)
 
     # subnetworkId is 20 bytes = 40 hex chars
@@ -85,6 +94,42 @@ def reconstruct_transaction(tx_dict: dict) -> Transaction:
     )
 
 
+def normalize_for_rest_api(tx_dict: dict) -> dict:
+    """Normalize serialize_to_dict() format to Kaspa REST API format."""
+    inputs = []
+    for inp in tx_dict.get("inputs", []):
+        if "previousOutpoint" in inp:
+            po = inp["previousOutpoint"]
+        else:
+            po = {"transactionId": inp["transactionId"], "index": inp["index"]}
+        inputs.append({
+            "previousOutpoint": po,
+            "signatureScript": inp.get("signatureScript", ""),
+            "sequence": inp.get("sequence", 0),
+            "sigOpCount": inp.get("sigOpCount", 1),
+        })
+    
+    outputs = []
+    for out in tx_dict.get("outputs", []):
+        amount = out.get("value") or out.get("amount", 0)
+        spk = out.get("scriptPublicKey", "")
+        if isinstance(spk, str):
+            # Convert hex to {scriptPublicKey, version} dict
+            version = int(spk[:4], 16) if len(spk) >= 4 else 0
+            script = spk[4:] if len(spk) > 4 else spk
+            spk = {"scriptPublicKey": script, "version": version}
+        outputs.append({"amount": amount, "scriptPublicKey": spk})
+    
+    return {
+        "version": tx_dict.get("version", 0),
+        "inputs": inputs,
+        "outputs": outputs,
+        "lockTime": tx_dict.get("lockTime", 0),
+        "subnetworkId": tx_dict.get("subnetworkId", "0000000000000000000000000000000000000000"),
+        "payload": tx_dict.get("payload", ""),
+    }
+
+
 def broadcast_rest(tx_dict: dict, network: str = "testnet") -> dict:
     """Broadcast via public REST API (no kaspad needed)."""
     import urllib.request
@@ -92,7 +137,8 @@ def broadcast_rest(tx_dict: dict, network: str = "testnet") -> dict:
     base = "https://api-tn10.kaspa.org" if network == "testnet" else "https://api.kaspa.org"
     url = f"{base}/transactions"
     
-    payload = json.dumps({"transaction": tx_dict}).encode("utf-8")
+    normalized = normalize_for_rest_api(tx_dict)
+    payload = json.dumps({"transaction": normalized}).encode("utf-8")
     req = urllib.request.Request(url, data=payload, headers={
         "Content-Type": "application/json",
         "User-Agent": "KaspaTelecom/1.0",
