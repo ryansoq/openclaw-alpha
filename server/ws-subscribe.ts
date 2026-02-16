@@ -24,20 +24,8 @@ export class SubscriptionManager {
   private subscribers = new Map<string, Set<WebSocket>>();
 
   constructor(server: Server) {
-    this.wss = new WebSocketServer({ server, path: "/subscribe" });
-
-    this.wss.on("connection", (ws: WebSocket, req) => {
-      const url = new URL(req.url ?? "/", "http://localhost");
-      // Path is /subscribe, address comes as first path segment after /subscribe/
-      // But since WSS path is /subscribe, req.url will be /subscribe/kaspatest:xxx
-      // Actually with path: "/subscribe", ws only matches exact /subscribe
-      // We need noServer or a different approach. Let's handle via upgrade manually.
-    });
-
-    // Close — we'll use a different approach with noServer
-    this.wss.close();
-
-    // Create with noServer to handle path-based routing
+    // Use noServer mode — we handle upgrade routing manually
+    // to avoid conflicts with WSBridge's WebSocketServer on the same HTTP server
     this.wss = new WebSocketServer({ noServer: true });
 
     this.wss.on("connection", (ws: WebSocket, address: string) => {

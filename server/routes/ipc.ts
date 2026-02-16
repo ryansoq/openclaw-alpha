@@ -252,10 +252,10 @@ export async function handleIpcCommand(
       if (!ma?.agent) return { ok: false, error: "agent param required" };
       const since = Number(ma.since ?? 0);
       const limit = Math.min(Number(ma.limit ?? 20), 100);
-      const pattern = new RegExp(`@${ma.agent}\\b`, "i");
+      const agentLower = ma.agent.toLowerCase();
       const allEvents = ctx.eventStore.query(since, 500);
       const mentions = allEvents
-        .filter(e => e.worldType === "chat" && e.agentId !== ma.agent && pattern.test((e as any).text ?? ""))
+        .filter(e => e.worldType === "chat" && e.agentId !== ma.agent && ((e as any).text ?? "").toLowerCase().includes(`@${agentLower}`))
         .slice(-limit);
       return { ok: true, agent: ma.agent, mentions, count: mentions.length };
     }

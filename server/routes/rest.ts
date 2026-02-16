@@ -53,10 +53,10 @@ export async function handleRestRoute(
     if (!agent) { json(res, 400, { ok: false, error: "agent param required" }); return true; }
     const since = Number(reqUrl.searchParams.get("since") || "0");
     const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "20"), 100);
-    const pattern = new RegExp(`@${agent}\\b`, "i");
+    const agentLower = agent.toLowerCase();
     const allEvents = ctx.eventStore.query(since, 500);
     const mentions = allEvents
-      .filter(e => e.worldType === "chat" && e.agentId !== agent && pattern.test((e as any).text ?? ""))
+      .filter(e => e.worldType === "chat" && e.agentId !== agent && ((e as any).text ?? "").toLowerCase().includes(`@${agentLower}`))
       .slice(-limit);
     json(res, 200, { ok: true, agent, mentions, count: mentions.length });
     return true;
@@ -428,20 +428,25 @@ export async function handleRestRoute(
   if (url.startsWith("/api/utxos/") && method === "GET") {
     try {
       const address = decodeURIComponent(url.replace("/api/utxos/", "").split("?")[0]);
-      if (!address) { json(res, 400, { ok: false, error: "address required" }); return true; }
+      if (!address || !/^kaspa(test)?:[a-z0-9]{61,63}$/.test(address)) {
+        json(res, 400, { ok: false, error: "Invalid or missing address" }); return true;
+      }
 
       const reqUrl = new URL(req.url ?? "/", "http://localhost");
       const network = reqUrl.searchParams.get("network") || "testnet";
+      if (!["testnet", "mainnet"].includes(network)) {
+        json(res, 400, { ok: false, error: "Invalid network (testnet or mainnet)" }); return true;
+      }
 
-      const { execSync } = await import("node:child_process");
+      const { execFileSync } = await import("node:child_process");
       const scriptPath = new URL(
         "../../skills/kaspa-telecom/scripts/get_utxos.py",
         import.meta.url
       ).pathname;
 
-      const result = execSync(
-        `python3 "${scriptPath}" "${address}" --network ${network}`,
-        { timeout: 30_000, encoding: "utf-8" }
+      const result = execFileSync(
+        "python3", [scriptPath, address, "--network", network],
+        { timeout: 30_000, encoding: "utf-8", maxBuffer: 50 * 1024 * 1024 }
       );
       const parsed = JSON.parse(result.trim());
 
@@ -476,13 +481,16 @@ export async function handleRestRoute(
       }
 
       const network = (body.network as string) || "testnet";
+      if (!["testnet", "mainnet"].includes(network)) {
+        json(res, 400, { ok: false, error: "Invalid network (testnet or mainnet)" }); return true;
+      }
 
       // Call broadcast_tx.py — uses kaspad wRPC directly with dict format
-      const { execSync } = await import("node:child_process");
+      const { execFileSync } = await import("node:child_process");
       const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
       const input = JSON.stringify(body);
-      const result = execSync(
-        `python3 "${scriptPath}"`,
+      const result = execFileSync(
+        "python3", [scriptPath],
         { timeout: 30_000, encoding: "utf-8", input }
       );
       const parsed = JSON.parse(result.trim());
