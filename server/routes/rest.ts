@@ -355,14 +355,13 @@ export async function handleRestRoute(
       }
       const network = (body.network as string) || "testnet";
 
-      // Call broadcast_tx.py — it handles hex, dict, and build_and_sign output
+      // Call broadcast_tx.py — uses kaspad wRPC directly with dict format
       const { execSync } = await import("node:child_process");
       const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
       const input = JSON.stringify(body);
-      const escaped = input.replace(/'/g, "'\\''");
       const result = execSync(
-        `echo '${escaped}' | python3 "${scriptPath}" --network ${network}`,
-        { timeout: 30_000, encoding: "utf-8" }
+        `python3 "${scriptPath}"`,
+        { timeout: 30_000, encoding: "utf-8", input }
       );
       const parsed = JSON.parse(result.trim());
 
