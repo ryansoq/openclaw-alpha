@@ -22,8 +22,13 @@ export class MessageStore {
     this.load();
   }
 
-  /** Add a new message */
+  /** Add a new message (dedup by txId + toAddress) */
   add(msg: Omit<KaspaMessage, "id">): KaspaMessage {
+    // Dedup: same TX to same recipient = same message
+    if (msg.txId) {
+      const dup = this.messages.find(m => m.txId === msg.txId && m.toAddress === msg.toAddress);
+      if (dup) return dup;
+    }
     const full: KaspaMessage = {
       ...msg,
       id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,

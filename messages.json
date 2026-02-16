@@ -25,5 +25,199 @@
     "txId": "8b80336be66d4dc0820a6d8991ce277195cc92b02a7c09ee7aa31384ba0224d3",
     "status": "confirmed",
     "id": "msg_003"
+  },
+  {
+    "fromAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "toAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "KNaHeWMoBTsIMu6Ds3+/0FgHLTVxY6zjmOtkxm3HL3g1OEPwRkWQpWZ7GnePYJQX5haLMgxe2WaoA9obxrF1vnAS8Vh63dMBtHWfUs1Fhu+25IrnBmqxLDmiudsgqHtdtu6cYBYtsDgv7NW7rx/BXhWA/2CnlL/vn9lc",
+      "a": {
+        "enc": "ecdh-aes256gcm",
+        "from": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m"
+      }
+    },
+    "timestamp": 1771235522309,
+    "txId": "01b5c43634714a9874ec50078e85060ef3f4a3a5a4859aa2067c92cb6e1a76f3",
+    "status": "confirmed",
+    "id": "msg_1771236325406_c8hfdk"
+  },
+  {
+    "fromAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "Au53SmpDciy6NkOy/cFWSIuWhZq/bp38l34SRMROR1hjduU3PNcbsnJgetKkZziiW6109NlCIOEEWUJ/eL1e5PKA4yXmTX1gery8qFWbB26t/WHj0KrhvQ72e5dZoJnR8QcAJh3mBpVZTtgyx+K/BSFDy0W/6qqeAoMVV8fhykLW3LnYaR2iMtdsA+XE38kmSwJVcZV1zwmGxAyIib++4kZdVZOrqKHPUmDow52uppf9VFlNrHK/zNF26sr3rKRDqO6vkczWfYdl7BE015R4jZqKKu8=",
+      "a": {
+        "enc": "ecdh-aes256gcm",
+        "from": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm"
+      }
+    },
+    "timestamp": 1771235113444,
+    "txId": "3fe110ca477d4cd84e3b2753536c483ade78f9fa30cd6d2cad47746c9e7df98c",
+    "status": "confirmed",
+    "id": "msg_1771236330007_7lkfog"
+  },
+  {
+    "fromAddress": "kaspatest:qr4yle907dz38lvzlxtqduymj73jq7lmcrks77qd5wldlv6vsxcvvyefcneck",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "3SWMT72JYjw+AXb89sEW6HDk/t+GA4SLF09s+6vV+Sv11cjW1WOk3l6fptjGkf03kfWIr6KfYZTzPptqbt/aoAGxRtU=",
+      "a": {
+        "enc": "ecdh-aes256gcm",
+        "from": "kaspatest:qr4yle907dz38lvzlxtqduymj73jq7lmcrks77qd5wldlv6vsxcvvyefcneck"
+      }
+    },
+    "timestamp": 1771233507248,
+    "txId": "2be0708a7fda69d32f5829d13f7441cf2ecfe330049f2ee7c95a5888631a5c3c",
+    "status": "confirmed",
+    "id": "msg_1771236339245_7wm63m"
+  },
+  {
+    "fromAddress": "kaspatest:qr4yle907dz38lvzlxtqduymj73jq7lmcrks77qd5wldlv6vsxcvvyefcneck",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "3SWMT72JYjw+AXb89sEW6HDk/t+GA4SLF09s+6vV+Sv11cjW1WOk3l6fptjGkf03kfWIr6KfYZTzPptqbt/aoAGxRtU=",
+      "a": {
+        "enc": "ecdh-aes256gcm",
+        "from": "kaspatest:qr4yle907dz38lvzlxtqduymj73jq7lmcrks77qd5wldlv6vsxcvvyefcneck"
+      }
+    },
+    "timestamp": 1771233507248,
+    "txId": "2be0708a7fda69d32f5829d13f7441cf2ecfe330049f2ee7c95a5888631a5c3c",
+    "status": "confirmed",
+    "id": "msg_1771236339263_3adlut"
+  },
+  {
+    "fromAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "🎉 Testing full telecom flow! Bob → Nami via broadcast service! 📡🔧",
+      "a": {}
+    },
+    "timestamp": 1771221000911,
+    "txId": "673e1a8520111d2ec19d15bed5795728458e6dd08b62e0c53aed524e87dd2c48",
+    "status": "confirmed",
+    "id": "msg_1771236347639_vsu0so"
+  },
+  {
+    "fromAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "toAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "Broadcast API test!",
+      "a": {}
+    },
+    "timestamp": 1771220549729,
+    "txId": "8ea1ca13b5fc4603da3c17c51a1e45d4f888ffc50b7456d5b4ede76eee3031d1",
+    "status": "confirmed",
+    "id": "msg_1771236347662_leah8p"
+  },
+  {
+    "fromAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "toAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "Broadcast API test!",
+      "a": {}
+    },
+    "timestamp": 1771220549729,
+    "txId": "8ea1ca13b5fc4603da3c17c51a1e45d4f888ffc50b7456d5b4ede76eee3031d1",
+    "status": "confirmed",
+    "id": "msg_1771236347662_kfi1ab"
+  },
+  {
+    "fromAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "🎉 Testing NEW broadcast flow! SDK reconstruct method! 🔧📡",
+      "a": {}
+    },
+    "timestamp": 1771219866416,
+    "txId": "c8f99f654d180eb7e0d6ad44689e3b1c73b9ced8298ff10a6733d2fdff481c16",
+    "status": "confirmed",
+    "id": "msg_1771236347664_8ifik7"
+  },
+  {
+    "fromAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "🎉 Testing NEW broadcast flow! SDK reconstruct method! 🔧📡",
+      "a": {}
+    },
+    "timestamp": 1771219866416,
+    "txId": "c8f99f654d180eb7e0d6ad44689e3b1c73b9ced8298ff10a6733d2fdff481c16",
+    "status": "confirmed",
+    "id": "msg_1771236347836_pwymjx"
+  },
+  {
+    "fromAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "🎉 Testing NEW broadcast flow! SDK reconstruct method! 🔧📡",
+      "a": {}
+    },
+    "timestamp": 1771219866416,
+    "txId": "c8f99f654d180eb7e0d6ad44689e3b1c73b9ced8298ff10a6733d2fdff481c16",
+    "status": "confirmed",
+    "id": "msg_1771236347837_8p8pma"
+  },
+  {
+    "fromAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "toAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "relay test",
+      "a": {}
+    },
+    "timestamp": 1771217591502,
+    "txId": "02ec00ea589f652e39156a3c805abf9cd4d6dc893cc3e1b0fdde7b53c05962dd",
+    "status": "confirmed",
+    "id": "msg_1771236348045_6tmrsf"
+  },
+  {
+    "fromAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "toAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "relay test",
+      "a": {}
+    },
+    "timestamp": 1771217591502,
+    "txId": "02ec00ea589f652e39156a3c805abf9cd4d6dc893cc3e1b0fdde7b53c05962dd",
+    "status": "confirmed",
+    "id": "msg_1771236348046_ans1fo"
+  },
+  {
+    "fromAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "toAddress": "kaspatest:qpyq8nx8s8y68cqsvyptnap43m8c5we8p0pl9wwzctxnpjsht5rccyf63eexm",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "relay test",
+      "a": {}
+    },
+    "timestamp": 1771217591502,
+    "txId": "02ec00ea589f652e39156a3c805abf9cd4d6dc893cc3e1b0fdde7b53c05962dd",
+    "status": "confirmed",
+    "id": "msg_1771236348047_h4f98v"
   }
 ]
