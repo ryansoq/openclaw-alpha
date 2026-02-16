@@ -83,13 +83,10 @@ async def build_and_sign(
         )
 
         signed_txs = []
-        while True:
-            result = generator.next()
-            if not result:
-                break
-            tx = result["transaction"]
-            signed = tx.sign([private_key])
-            tx_dict = signed.serialize_to_dict()
+        for pending_tx in generator:
+            pending_tx.sign([private_key])
+            tx = pending_tx.transaction
+            tx_dict = tx.serialize_to_dict()
             signed_txs.append(tx_dict)
 
         if not signed_txs:
