@@ -57,6 +57,22 @@ async def build_and_sign(
 
     amount_sompi = int(amount_kas * 100_000_000)
     private_key = PrivateKey(private_key_hex)
+
+    # Safety check: verify private key matches from-address
+    derived_address = str(private_key.to_public_key().to_address(network))
+    if sender_address and sender_address != derived_address:
+        raise ValueError(
+            f"❌ Private key mismatch!\n"
+            f"  Key derives:   {derived_address}\n"
+            f"  from-address:  {sender_address}\n"
+            f"  Fix: use --from-address {derived_address}"
+        )
+
+    # If no from-address provided, auto-derive from key
+    if not sender_address:
+        sender_address = derived_address
+        print(f"📍 Auto-derived address: {sender_address}", file=sys.stderr)
+
     sender = Address(sender_address)
     recipient = Address(recipient_address)
 
@@ -117,7 +133,8 @@ def main():
     parser.add_argument("--data", "-d", help="Message data")
     parser.add_argument("--additional", "-a", default="{}")
     parser.add_argument("--key", required=True, help="Private key hex")
-    parser.add_argument("--from-address", dest="sender", required=True)
+    parser.add_argument("--from-address", dest="sender", default="",
+                        help="Sender address (auto-derived from key if omitted)")
     parser.add_argument("--network", choices=["mainnet", "testnet"], default="testnet")
     parser.add_argument("--amount", type=float, default=0.01)
     args = parser.parse_args()
