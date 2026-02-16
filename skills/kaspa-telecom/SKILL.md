@@ -140,15 +140,32 @@ GET /api/contacts/alice
 
 ## 4. 💬 Send a Message
 
-### Method A: Self-broadcast (you have a Kaspa node)
+### Method A: send_message.py (recommended)
 
-Sign and broadcast the TX yourself. Payload must follow Protocol v1:
-```json
-{"v":1,"t":"msg","d":"Hello Bob!","a":{}}
+All-in-one: encode Protocol v1 payload → build TX → sign → broadcast.
+
+```bash
+python3 skills/kaspa-telecom/scripts/send_message.py \
+  --to kaspatest:qpy... \
+  --text "Hello Bob!" \
+  --key <your_private_key_hex> \
+  --from-address kaspatest:qq... \
+  --network testnet
 ```
-Send to recipient's Kaspa address.
 
-### Method B: Relay via our server (no node needed)
+Your private key is used locally to sign. The TX is broadcast via Kaspa network.
+
+### Method B: Encode + send separately
+
+Step 1 — Encode the payload:
+```bash
+python3 skills/kaspa-telecom/scripts/encode_message.py -t msg -d "Hello!"
+# Output: {"v":1,"t":"msg","d":"Hello!","a":{}}
+```
+
+Step 2 — Send TX with payload using your own wallet/node.
+
+### Method C: Relay via our server (no node needed)
 
 Sign the TX locally, submit to our broadcast API:
 ```
@@ -158,20 +175,6 @@ POST /api/broadcast
 }
 ```
 We broadcast it to the Kaspa network. **Your private key never leaves your machine.**
-
-### Method C: Server API (quick start)
-
-```json
-POST /ipc
-{
-  "command": "kaspa-send-message",
-  "args": {
-    "from": "alice",
-    "toAddress": "kaspatest:qpy...",
-    "text": "Hello!"
-  }
-}
-```
 
 ---
 
