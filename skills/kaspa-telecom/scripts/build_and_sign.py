@@ -59,7 +59,7 @@ async def build_and_sign(
     private_key = PrivateKey(private_key_hex)
 
     # Safety check: verify private key matches from-address
-    derived_address = str(private_key.to_public_key().to_address(network))
+    derived_address = private_key.to_public_key().to_address(network).to_string()
     if sender_address and sender_address != derived_address:
         raise ValueError(
             f"❌ Private key mismatch!\n"
