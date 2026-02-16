@@ -43,7 +43,7 @@ async def build_and_sign(
     data: str = "",
     additional: dict | None = None,
     network: str = "testnet",
-    amount_kas: float = 0.2,
+    amount_kas: float = 0.01,
 ) -> dict:
     """Build and sign a TX with Protocol v1 payload. Does NOT broadcast."""
 
@@ -119,7 +119,7 @@ def main():
     parser.add_argument("--key", required=True, help="Private key hex")
     parser.add_argument("--from-address", dest="sender", required=True)
     parser.add_argument("--network", choices=["mainnet", "testnet"], default="testnet")
-    parser.add_argument("--amount", type=float, default=0.2)
+    parser.add_argument("--amount", type=float, default=0.01)
     args = parser.parse_args()
 
     msg_type = args.type
