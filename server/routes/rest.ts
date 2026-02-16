@@ -567,7 +567,28 @@ export async function handleRestRoute(
         json(res, 200, { ok: true, tx_id: txId, network });
       } else {
         console.error(`[broadcast] REST API ${resp.status}: ${respText.slice(0, 200)}`);
-        json(res, 400, { ok: false, error: `Kaspa REST API: ${respText.slice(0, 200)}` });
+        // Fallback: try local kaspad via broadcast_tx.py
+        console.log(`[broadcast] REST failed, trying local kaspad via broadcast_tx.py...`);
+        const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
+        try {
+          const result = await execFile(
+            "python3", [scriptPath],
+            { timeout: 15_000, encoding: "utf-8", input: JSON.stringify(body) }
+          );
+          const parsed = JSON.parse(result.stdout.trim());
+          if (parsed.success) {
+            trackTxId(parsed.tx_id);
+            broadcastCount++;
+            console.log(`[broadcast] TX relayed via local RPC: ${parsed.tx_id} (${network})`);
+            json(res, 200, { ok: true, tx_id: parsed.tx_id, network });
+          } else {
+            json(res, 400, { ok: false, error: parsed.error || "Local RPC broadcast failed" });
+          }
+        } catch (localErr: unknown) {
+          const le = localErr as { stdout?: string; message?: string };
+          console.error(`[broadcast] Local RPC also failed:`, le.message);
+          json(res, 400, { ok: false, error: `Kaspa REST API: ${respText.slice(0, 200)}` });
+        }
       }
     } catch (err) {
       console.error(`[broadcast] Error:`, err instanceof Error ? err.message : String(err));
