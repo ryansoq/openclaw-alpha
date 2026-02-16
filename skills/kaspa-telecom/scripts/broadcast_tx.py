@@ -205,9 +205,14 @@ def parse_input(raw: str) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Broadcast signed TX")
     parser.add_argument("--network", choices=["mainnet", "testnet"], default="testnet")
+    parser.add_argument("--input", help="Read TX JSON from file instead of stdin")
     args = parser.parse_args()
 
-    stdin_data = sys.stdin.read().strip()
+    if args.input:
+        with open(args.input) as f:
+            stdin_data = f.read().strip()
+    else:
+        stdin_data = sys.stdin.read().strip()
     if not stdin_data:
         print(json.dumps({"success": False, "error": "Pipe signed TX JSON to stdin"}))
         sys.exit(1)

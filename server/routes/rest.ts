@@ -513,12 +513,17 @@ export async function handleRestRoute(
       console.log(`[broadcast] TX ${tx.id || "?"}, ${signedTxs.length} tx(s), network=${network}`);
 
       // Try 1: Local kaspad via broadcast_tx.py (reconstruct + direct RPC)
+      // Write to temp file instead of stdin — execFile stdin breaks Python asyncio WebSocket
       const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
+      const tmpFile = `/tmp/broadcast_${Date.now()}.json`;
+      const { writeFile, unlink } = await import("node:fs/promises");
+      await writeFile(tmpFile, JSON.stringify(body));
       try {
         const result = await execFile(
-          "python3", [scriptPath],
-          { timeout: 15_000, encoding: "utf-8", input: JSON.stringify(body) }
+          "python3", [scriptPath, "--input", tmpFile],
+          { timeout: 15_000, encoding: "utf-8" }
         );
+        await unlink(tmpFile).catch(() => {});
         const parsed = JSON.parse(result.stdout.trim());
         if (parsed.success) {
           const txId = typeof parsed.tx_id === "string" ? parsed.tx_id : JSON.stringify(parsed.tx_id);
@@ -530,6 +535,7 @@ export async function handleRestRoute(
           throw new Error(parsed.error || "Local RPC failed");
         }
       } catch (localErr: unknown) {
+        await unlink(tmpFile).catch(() => {});
         const le = localErr as { stdout?: string; stderr?: string; message?: string };
         console.error(`[broadcast] Local RPC failed:`, le.message?.slice(0, 100));
         // Parse stdout for JSON error if available
