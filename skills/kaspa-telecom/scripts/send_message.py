@@ -73,7 +73,10 @@ async def send_message(
     sender = Address(sender_address)
     recipient = Address(recipient_address)
 
-    client = RpcClient(resolver=Resolver(), network_id=network)
+    # Map friendly names to network IDs
+    net_map = {"testnet": "testnet-10", "mainnet": "mainnet"}
+    net_id = net_map.get(network, network)
+    client = RpcClient(resolver=Resolver(), network_id=net_id)
     await client.connect()
 
     try:
@@ -87,7 +90,7 @@ async def send_message(
 
         # Create TX with payload
         generator = Generator(
-            network_id=network,
+            network_id=net_id,
             entries=utxos["entries"],
             change_address=sender,
             outputs=[PaymentOutput(recipient, amount_sompi)],
