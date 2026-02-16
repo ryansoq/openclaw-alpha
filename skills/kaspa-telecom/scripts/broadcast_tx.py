@@ -177,12 +177,12 @@ async def broadcast_rpc(tx_dict: dict, network: str = "testnet") -> dict:
 
 
 def broadcast(tx_dict: dict, network: str = "testnet") -> dict:
-    """Try RPC first, fall back to REST API."""
+    """Try REST API first (no reconstruct needed), fall back to RPC."""
     try:
-        return asyncio.run(broadcast_rpc(tx_dict, network))
-    except Exception as rpc_err:
-        print(f"[broadcast] RPC failed ({rpc_err}), trying REST API...", file=sys.stderr)
         return broadcast_rest(tx_dict, network)
+    except Exception as rest_err:
+        print(f"[broadcast] REST failed ({rest_err}), trying RPC...", file=sys.stderr)
+        return asyncio.run(broadcast_rpc(tx_dict, network))
 
 
 def parse_input(raw: str) -> dict:
