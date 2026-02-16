@@ -51,7 +51,11 @@ def reconstruct_transaction(tx_dict: dict) -> Transaction:
                 spk_data.get("scriptPublicKey", ""),
             )
         else:
-            spk = ScriptPublicKey(0, spk_data)
+            # scriptPublicKey hex format: [version:2bytes][script]
+            # version is first 4 hex chars (2 bytes), extract it
+            version = int(spk_data[:4], 16) if len(spk_data) >= 4 else 0
+            script = spk_data[4:] if len(spk_data) > 4 else spk_data
+            spk = ScriptPublicKey(version, script)
         to = TransactionOutput(out["value"], spk)
         outputs.append(to)
 
