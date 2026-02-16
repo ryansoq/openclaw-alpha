@@ -247,5 +247,33 @@
     "txId": "245a3b1583068e19403003e121030e2cc36935394ad398cc77fded60558a3800",
     "status": "confirmed",
     "id": "msg_1771261234834_g2a91i"
+  },
+  {
+    "fromAddress": "kaspatest:qr4yle907dz38lvzlxtqduymj73jq7lmcrks77qd5wldlv6vsxcvvyefcneck",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "rpc test",
+      "a": {}
+    },
+    "timestamp": 1771266713849,
+    "txId": "51edcfd08aa55d1a86ca10f83b4dd086ba66c41095746bebf621c72d867b0a6c",
+    "status": "confirmed",
+    "id": "msg_1771266727102_czp4up"
+  },
+  {
+    "fromAddress": "kaspatest:qzx6ccd2kdvq9jwk8k72a67akn4ptavzh66n6qdxh9q7dfdxktyh6p7tmqu26",
+    "toAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "Test local script",
+      "a": {}
+    },
+    "timestamp": 1771267062163,
+    "txId": "d6dc8b51a02aa8d485a02949a21c0f4c0be890f56feb92e8e52cf9315f90aadb",
+    "status": "confirmed",
+    "id": "msg_1771267074195_da693m"
   }
 ]

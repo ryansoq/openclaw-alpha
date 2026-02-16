@@ -504,36 +504,70 @@ export async function handleRestRoute(
         return true;
       }
 
-      // Call broadcast_tx.py — uses kaspad wRPC directly with dict format
-      const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
-      const input = JSON.stringify(body);
-      console.log(`[broadcast] Input keys: ${Object.keys(body).join(', ')}, txData type: ${typeof txData}`);
-      let stdout: string;
-      try {
-        const result = await execFile(
-          "python3", [scriptPath],
-          { timeout: 30_000, encoding: "utf-8", input }
-        );
-        stdout = result.stdout;
-      } catch (execErr: unknown) {
-        // execFile throws on non-zero exit — but stdout may still have JSON error
-        const e = execErr as { stdout?: string; stderr?: string; message?: string };
-        stdout = e.stdout ?? "";
-        if (!stdout.trim()) {
-          console.error(`[broadcast] Script error — stderr:`, e.stderr, `msg:`, e.message);
-          json(res, 500, { ok: false, error: "Broadcast script error" });
-          return true;
-        }
+      // Broadcast via Kaspa REST API directly (no Python subprocess needed)
+      const signedTxs = body.signed_txs as any[];
+      if (!signedTxs?.length) {
+        json(res, 400, { ok: false, error: "No signed_txs provided" }); return true;
       }
-      const parsed = JSON.parse(stdout.trim());
+      const tx = signedTxs[0];
+      console.log(`[broadcast] TX ${tx.id || "?"}, ${signedTxs.length} tx(s), network=${network}`);
 
-      if (parsed.success) {
-        trackTxId(parsed.tx_id);
+      // Normalize to REST API format
+      const restTx: any = {
+        version: tx.version ?? 0,
+        inputs: (tx.inputs || []).map((inp: any) => ({
+          previousOutpoint: inp.previousOutpoint || {
+            transactionId: inp.transactionId,
+            index: inp.index ?? 0,
+          },
+          signatureScript: inp.signatureScript || "",
+          sequence: inp.sequence ?? 0,
+          sigOpCount: inp.sigOpCount ?? 1,
+        })),
+        outputs: (tx.outputs || []).map((out: any) => {
+          const spk = out.scriptPublicKey;
+          let version = 0, script = "";
+          if (typeof spk === "object") {
+            version = spk.version ?? 0;
+            script = spk.scriptPublicKey || spk.script || "";
+          } else if (typeof spk === "string" && spk.length > 4) {
+            version = parseInt(spk.slice(0, 4), 16);
+            script = spk.slice(4);
+          }
+          return {
+            amount: out.value ?? out.amount ?? 0,
+            scriptPublicKey: { version, scriptPublicKey: script },
+          };
+        }),
+        lockTime: tx.lockTime ?? 0,
+        subnetworkId: tx.subnetworkId || "0000000000000000000000000000000000000000",
+        payload: tx.payload || "",
+        gas: tx.gas ?? 0,
+      };
+
+      const restApiBase = network === "mainnet"
+        ? "https://api.kaspa.org"
+        : "https://api-tn10.kaspa.org";
+
+      const resp = await fetch(`${restApiBase}/transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transaction: restTx, allowOrphan: false }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const respText = await resp.text();
+
+      if (resp.ok) {
+        // REST API returns the transaction ID
+        let txId = tx.id || "";
+        try { txId = JSON.parse(respText)?.transactionId || txId; } catch {}
+        trackTxId(txId);
         broadcastCount++;
-        console.log(`[broadcast] TX relayed: ${parsed.tx_id} (${network})`);
-        json(res, 200, { ok: true, tx_id: parsed.tx_id, network });
+        console.log(`[broadcast] TX relayed via REST: ${txId} (${network})`);
+        json(res, 200, { ok: true, tx_id: txId, network });
       } else {
-        json(res, 400, { ok: false, error: parsed.error || "Broadcast failed" });
+        console.error(`[broadcast] REST API ${resp.status}: ${respText.slice(0, 200)}`);
+        json(res, 400, { ok: false, error: `Kaspa REST API: ${respText.slice(0, 200)}` });
       }
     } catch (err) {
       console.error(`[broadcast] Error:`, err instanceof Error ? err.message : String(err));
