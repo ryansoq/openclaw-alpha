@@ -233,6 +233,133 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/directory — Public address book ────────────────────
+
+  // POST /api/directory/register — External agent registration
+  if (url === "/api/directory/register" && method === "POST") {
+    try {
+      const body = (await readBody(req)) as {
+        name?: string; kaspaAddress?: string; bio?: string; skills?: string[];
+      };
+      if (!body.name || !body.kaspaAddress) {
+        json(res, 400, { ok: false, error: "name and kaspaAddress required" });
+        return true;
+      }
+
+      // Check if address already registered
+      const existing = ctx.registry.getAll().find(p => p.kaspaAddress === body.kaspaAddress);
+      if (existing) {
+        json(res, 409, { ok: false, error: "Address already registered", agentId: existing.agentId });
+        return true;
+      }
+
+      // Generate agentId from name slug
+      const slug = body.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      let agentId = slug || "agent";
+      if (ctx.registry.get(agentId)) {
+        agentId = `${slug}-${Date.now().toString(36)}`;
+      }
+
+      const profile = ctx.registry.register({
+        agentId,
+        name: body.name,
+        kaspaAddress: body.kaspaAddress,
+        bio: body.bio ?? "",
+        skills: body.skills?.map(s => ({ skillId: s, name: s })),
+      });
+
+      const token = ctx.auth.issueToken(agentId);
+
+      const pub = {
+        agentId: profile.agentId, name: profile.name, bio: profile.bio,
+        kaspaAddress: profile.kaspaAddress, skills: profile.skills,
+        joinedAt: profile.joinedAt, lastSeen: profile.lastSeen,
+      };
+      json(res, 201, { ok: true, profile: pub, token });
+    } catch (err) {
+      json(res, 400, { ok: false, error: String(err) });
+    }
+    return true;
+  }
+
+  // GET /api/directory — List public directory
+  if (url.startsWith("/api/directory") && method === "GET") {
+    const reqUrl = new URL(req.url ?? "/", "http://localhost");
+    const path = reqUrl.pathname;
+
+    // GET /api/directory/:address — Lookup by Kaspa address
+    if (path.startsWith("/api/directory/")) {
+      const address = decodeURIComponent(path.replace("/api/directory/", ""));
+      const profile = ctx.registry.getAll().find(p => p.kaspaAddress === address);
+      if (!profile) { json(res, 404, { ok: false, error: "Address not found" }); return true; }
+      json(res, 200, {
+        ok: true,
+        profile: {
+          agentId: profile.agentId, name: profile.name, bio: profile.bio,
+          kaspaAddress: profile.kaspaAddress, skills: profile.skills,
+          joinedAt: profile.joinedAt, lastSeen: profile.lastSeen,
+        },
+      });
+      return true;
+    }
+
+    // GET /api/directory — List all
+    const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "50"), 200);
+    const q = (reqUrl.searchParams.get("q") || "").toLowerCase();
+
+    let agents = ctx.registry.getAll().filter(p => !!p.kaspaAddress);
+    if (q) {
+      agents = agents.filter(p =>
+        p.name.toLowerCase().includes(q) || p.bio.toLowerCase().includes(q)
+      );
+    }
+
+    const entries = agents.slice(0, limit).map(p => ({
+      agentId: p.agentId, name: p.name, bio: p.bio,
+      kaspaAddress: p.kaspaAddress, skills: p.skills,
+      joinedAt: p.joinedAt, lastSeen: p.lastSeen,
+    }));
+
+    json(res, 200, { ok: true, entries, total: agents.length });
+    return true;
+  }
+
+  // PUT /api/directory/:address — Update profile (auth required)
+  if (url.startsWith("/api/directory/") && method === "PUT") {
+    try {
+      const address = decodeURIComponent(url.replace("/api/directory/", "").split("?")[0]);
+      const profile = ctx.registry.getAll().find(p => p.kaspaAddress === address);
+      if (!profile) { json(res, 404, { ok: false, error: "Address not found" }); return true; }
+
+      const authHeader = req.headers.authorization ?? "";
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      if (!ctx.auth.validate(token, profile.agentId)) {
+        json(res, 401, { ok: false, error: "Invalid or missing token" });
+        return true;
+      }
+
+      const body = (await readBody(req)) as { name?: string; bio?: string; skills?: string[] };
+      const updated = ctx.registry.register({
+        agentId: profile.agentId,
+        ...(body.name && { name: body.name }),
+        ...(body.bio !== undefined && { bio: body.bio }),
+        ...(body.skills && { skills: body.skills.map(s => ({ skillId: s, name: s })) }),
+      });
+
+      json(res, 200, {
+        ok: true,
+        profile: {
+          agentId: updated.agentId, name: updated.name, bio: updated.bio,
+          kaspaAddress: updated.kaspaAddress, skills: updated.skills,
+          joinedAt: updated.joinedAt, lastSeen: updated.lastSeen,
+        },
+      });
+    } catch (err) {
+      json(res, 400, { ok: false, error: String(err) });
+    }
+    return true;
+  }
+
   // ── /api/contacts/:agentId — Get agent contacts ─────────────
   if (url.startsWith("/api/contacts/") && method === "GET") {
     const agentId = url.replace("/api/contacts/", "").split("?")[0];
