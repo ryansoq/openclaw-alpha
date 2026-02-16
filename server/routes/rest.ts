@@ -310,6 +310,99 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/messages/relay — Agent sends message, we handle TX ─
+  if (url === "/api/messages/relay" && method === "POST") {
+    try {
+      const body = (await readBody(req)) as {
+        from?: string; to?: string;
+        payload?: { v: number; t: string; d: string; a: Record<string, unknown> };
+      };
+      if (!body.from || !body.to || !body.payload) {
+        json(res, 400, { ok: false, error: "from (address), to (address), and payload (v1 object) required" });
+        return true;
+      }
+      // Validate Protocol v1
+      const p = body.payload;
+      if (p.v !== 1 || !p.t || p.d === undefined || typeof p.a !== "object") {
+        json(res, 400, { ok: false, error: "Invalid Protocol v1 payload. Must have v=1, t, d, a(object)" });
+        return true;
+      }
+
+      const payloadStr = JSON.stringify(p);
+      console.log(`[relay] ${body.from} → ${body.to}: ${payloadStr}`);
+
+      // Use our wallet to send TX with payload
+      const { execSync } = await import("node:child_process");
+      const walletPath = "/home/ymchang/clawd/.secrets/testnet-wallet.json";
+      const walletData = JSON.parse(
+        (await import("node:fs")).readFileSync(walletPath, "utf-8")
+      );
+
+      const scriptPath = new URL(
+        "../../skills/kaspa-wallet/scripts/send_transaction.py",
+        import.meta.url
+      ).pathname;
+
+      // Send minimal amount (0.2 KAS) from our wallet to recipient with payload
+      const cmd = [
+        "python3", JSON.stringify(scriptPath),
+        "--from", walletData.address,
+        "--key", walletData.private_key,
+        "--to", body.to,
+        "--amount", "0.2",
+        "--network", "testnet",
+        "--json",
+      ].join(" ");
+
+      // We need a send script that supports payload. For now use send_message.py
+      const telecomScript = new URL(
+        "../../skills/kaspa-telecom/scripts/send_message.py",
+        import.meta.url
+      ).pathname;
+
+      const sendCmd = [
+        "python3", telecomScript,
+        "--to", body.to,
+        "--type", p.t,
+        "--data", JSON.stringify(p.d),
+        "--additional", JSON.stringify(JSON.stringify(p.a)),
+        "--key", walletData.private_key,
+        "--from-address", walletData.address,
+        "--network", "testnet",
+        "--amount", "0.2",
+        "--json",
+      ].join(" ");
+
+      const result = execSync(sendCmd, { timeout: 60_000, encoding: "utf-8" });
+      const parsed = JSON.parse(result.trim());
+
+      if (parsed.success) {
+        // Store message
+        const fromAgent = body.from.slice(0, 15) + "...";
+        const toAgent = body.to.slice(0, 15) + "...";
+        ctx.messageStore.add({
+          from: fromAgent, to: toAgent,
+          text: p.d, timestamp: Date.now(), status: "sent",
+        });
+
+        console.log(`[relay] ✅ TX sent: ${parsed.tx_ids?.[0]}`);
+        json(res, 200, {
+          ok: true,
+          tx_ids: parsed.tx_ids,
+          payload: payloadStr,
+          relay_from: walletData.address,
+          note: "Message relayed via OpenClaw Telecom 📡",
+        });
+      } else {
+        json(res, 500, { ok: false, error: parsed.error || "TX failed" });
+      }
+    } catch (err) {
+      console.error("[relay] Error:", err);
+      json(res, 500, { ok: false, error: `Relay error: ${String(err).slice(0, 300)}` });
+    }
+    return true;
+  }
+
   // ── /api/broadcast — Relay signed TX to Kaspa network ──────
   if (url === "/api/broadcast" && method === "POST") {
     try {
