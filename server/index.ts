@@ -198,6 +198,15 @@ async function main() {
   gameLoop.start();
   txListener.start();
 
+  // Rebuild agent profiles from chain if profiles.json was empty
+  if (registry.getAll().length === 0) {
+    console.log("[startup] No local profiles — skipping chain rebuild (no addresses to scan)");
+  } else {
+    registry.rebuildFromChain().catch((err) => {
+      console.warn("[startup] Chain rebuild warning:", err.message ?? err);
+    });
+  }
+
   // ── Heartbeat scanner: auto-idle & auto-kick ──────────────
   const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
   const KICK_TIMEOUT_MS = 120 * 60 * 1000;

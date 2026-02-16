@@ -21,7 +21,7 @@ import sys
 
 PROTOCOL_VERSION = 1
 
-VALID_TYPES = {"msg", "ack", "ping", "card", "grp"}
+VALID_TYPES = {"msg", "ack", "ping", "card", "grp", "register"}
 
 
 def encode(t: str, d: str, a: dict | None = None) -> str:

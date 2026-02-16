@@ -142,6 +142,34 @@ export class TxListener {
     // to: first output address (recipient)
     const toAddress = outputs[0]?.script_public_key_address ?? "unknown";
 
+    // ── Handle register TX ──────────────────────────────────────
+    if (protocol.t === "register") {
+      console.log(`[tx-listener] 📋 Register TX from ${fromAddress.slice(0, 25)}... (TX: ${tx.transaction_id.slice(0, 16)}...)`);
+      try {
+        const profileData = JSON.parse(protocol.d) as {
+          name?: string;
+          bio?: string;
+          webhook?: string;
+          capabilities?: string[];
+          skills?: { skillId: string; name: string; description?: string }[];
+        };
+        this.registry.register({
+          agentId: fromAddress,
+          name: profileData.name ?? fromAddress,
+          bio: profileData.bio ?? "",
+          kaspaAddress: fromAddress,
+          webhookUrl: profileData.webhook,
+          capabilities: profileData.capabilities ?? [],
+          skills: profileData.skills,
+        });
+        console.log(`[tx-listener] ✅ Registered agent: ${profileData.name ?? fromAddress}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[tx-listener] ⚠️ Invalid register payload:`, msg);
+      }
+      return;
+    }
+
     console.log(`[tx-listener] 📨 Protocol v1: ${fromAddress.slice(0, 25)}... → ${toAddress.slice(0, 25)}... (TX: ${tx.transaction_id.slice(0, 16)}...)`);
 
     // Store
