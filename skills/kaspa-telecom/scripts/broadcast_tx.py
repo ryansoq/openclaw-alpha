@@ -162,7 +162,12 @@ async def broadcast_rpc(tx_dict: dict, network: str = "testnet") -> dict:
     tx = reconstruct_transaction(tx_dict)
     print(f"[broadcast] Reconstructed TX: {tx.id}", file=sys.stderr)
 
-    client = RpcClient(resolver=Resolver(), network_id=net_id)
+    # Try local kaspad first (fast), fall back to resolver (slow)
+    local_port = "17210" if network == "testnet" else "16110"
+    try:
+        client = RpcClient(url=f"ws://127.0.0.1:{local_port}")
+    except Exception:
+        client = RpcClient(resolver=Resolver(), network_id=net_id)
     await client.connect()
 
     try:
@@ -177,12 +182,12 @@ async def broadcast_rpc(tx_dict: dict, network: str = "testnet") -> dict:
 
 
 def broadcast(tx_dict: dict, network: str = "testnet") -> dict:
-    """Try REST API first (no reconstruct needed), fall back to RPC."""
+    """Try RPC first (local kaspad), fall back to REST API."""
     try:
-        return broadcast_rest(tx_dict, network)
-    except Exception as rest_err:
-        print(f"[broadcast] REST failed ({rest_err}), trying RPC...", file=sys.stderr)
         return asyncio.run(broadcast_rpc(tx_dict, network))
+    except Exception as rpc_err:
+        print(f"[broadcast] RPC failed ({rpc_err}), trying REST API...", file=sys.stderr)
+        return broadcast_rest(tx_dict, network)
 
 
 def parse_input(raw: str) -> dict:
