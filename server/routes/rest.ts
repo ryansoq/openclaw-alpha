@@ -1,7 +1,30 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ServerContext } from "../context.js";
-import { json, readBody } from "../http-utils.js";
+import { json, readBody, PayloadTooLargeError } from "../http-utils.js";
 import { verifyTelegramAuth } from "../telegram-auth.js";
+
+// ── TX dedup set (防 Replay Attack) ──────────────────────────
+const broadcastedTxIds = new Set<string>();
+const TX_DEDUP_MAX = 10_000;
+const TX_DEDUP_TRIM = 5_000;
+
+function trackTxId(txId: string): boolean {
+  if (broadcastedTxIds.has(txId)) return false; // duplicate
+  broadcastedTxIds.add(txId);
+  if (broadcastedTxIds.size > TX_DEDUP_MAX) {
+    // Keep newest TX_DEDUP_TRIM entries
+    const arr = [...broadcastedTxIds];
+    broadcastedTxIds.clear();
+    for (const id of arr.slice(-TX_DEDUP_TRIM)) broadcastedTxIds.add(id);
+  }
+  return true;
+}
+
+/** Return a safe error string (no file paths or stack traces) */
+function sanitizeError(err: unknown): string {
+  if (err instanceof PayloadTooLargeError) return "Payload too large";
+  return "Internal server error";
+}
 
 /**
  * Handle REST API routes. Returns true if handled, false if not matched.
@@ -74,7 +97,7 @@ export async function handleRestRoute(
       const data = await upstream.json();
       json(res, 200, { ok: true, posts: data });
     } catch (err) {
-      json(res, 502, { ok: false, error: `Could not reach moltbook.com: ${String(err)}` });
+      json(res, 502, { ok: false, error: "Could not reach moltbook.com" });
     }
     return true;
   }
@@ -94,7 +117,7 @@ export async function handleRestRoute(
       const data = await response.json();
       json(res, 200, { ok: true, data });
     } catch (err) {
-      json(res, 502, { ok: false, error: `Could not reach clawhub.ai: ${String(err)}` });
+      json(res, 502, { ok: false, error: "Could not reach clawhub.ai" });
     }
     return true;
   }
@@ -118,7 +141,7 @@ export async function handleRestRoute(
       });
       json(res, 201, { ok: true, skill });
     } catch (err) {
-      json(res, 400, { ok: false, error: String(err) });
+      const status = err instanceof PayloadTooLargeError ? 413 : 400; json(res, status, { ok: false, error: sanitizeError(err) });
     }
     return true;
   }
@@ -131,7 +154,7 @@ export async function handleRestRoute(
       if (!record) { json(res, 404, { ok: false, error: "skill not found" }); return true; }
       json(res, 200, { ok: true, installed: record });
     } catch (err) {
-      json(res, 400, { ok: false, error: String(err) });
+      const status = err instanceof PayloadTooLargeError ? 413 : 400; json(res, status, { ok: false, error: sanitizeError(err) });
     }
     return true;
   }
@@ -143,7 +166,7 @@ export async function handleRestRoute(
       const ok = ctx.clawhub.uninstall(body.skillId);
       json(res, ok ? 200 : 404, { ok });
     } catch (err) {
-      json(res, 400, { ok: false, error: String(err) });
+      const status = err instanceof PayloadTooLargeError ? 413 : 400; json(res, status, { ok: false, error: sanitizeError(err) });
     }
     return true;
   }
@@ -185,7 +208,7 @@ export async function handleRestRoute(
         user: { id: user.id, name, username: user.username },
       });
     } catch (err) {
-      json(res, 400, { ok: false, error: String(err) });
+      const status = err instanceof PayloadTooLargeError ? 413 : 400; json(res, status, { ok: false, error: sanitizeError(err) });
     }
     return true;
   }
@@ -277,7 +300,7 @@ export async function handleRestRoute(
       };
       json(res, 201, { ok: true, profile: pub, token });
     } catch (err) {
-      json(res, 400, { ok: false, error: String(err) });
+      const status = err instanceof PayloadTooLargeError ? 413 : 400; json(res, status, { ok: false, error: sanitizeError(err) });
     }
     return true;
   }
@@ -355,7 +378,7 @@ export async function handleRestRoute(
         },
       });
     } catch (err) {
-      json(res, 400, { ok: false, error: String(err) });
+      const status = err instanceof PayloadTooLargeError ? 413 : 400; json(res, status, { ok: false, error: sanitizeError(err) });
     }
     return true;
   }
@@ -411,7 +434,7 @@ export async function handleRestRoute(
         json(res, 400, { ok: false, error: parsed.error });
       }
     } catch (err) {
-      json(res, 500, { ok: false, error: `UTXO query error: ${String(err).slice(0, 200)}` });
+      json(res, 500, { ok: false, error: "UTXO query error" });
     }
     return true;
   }
@@ -426,6 +449,14 @@ export async function handleRestRoute(
         json(res, 400, { ok: false, error: "Provide signedTx (hex), transaction (dict), or signed_txs (array)" });
         return true;
       }
+
+      // TX dedup — derive an ID for replay protection
+      const txId = (body.tx_id as string) || (typeof txData === "string" ? txData.slice(0, 64) : JSON.stringify(txData).slice(0, 128));
+      if (!trackTxId(txId)) {
+        json(res, 409, { ok: false, error: "TX already broadcast" });
+        return true;
+      }
+
       const network = (body.network as string) || "testnet";
 
       // Call broadcast_tx.py — uses kaspad wRPC directly with dict format
@@ -446,7 +477,11 @@ export async function handleRestRoute(
       }
     } catch (err) {
       console.error(`[broadcast] Error:`, err);
-      json(res, 500, { ok: false, error: `Broadcast error: ${String(err).slice(0, 200)}` });
+      if (err instanceof PayloadTooLargeError) {
+        json(res, 413, { ok: false, error: "Payload too large" });
+      } else {
+        json(res, 500, { ok: false, error: "Broadcast error" });
+      }
     }
     return true;
   }

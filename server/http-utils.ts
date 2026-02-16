@@ -1,15 +1,28 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+/** Sentinel error for payload-too-large (check with instanceof) */
+export class PayloadTooLargeError extends Error {
+  constructor(msg = "Payload too large") { super(msg); this.name = "PayloadTooLargeError"; }
+}
+
 /** Read and parse JSON body from request */
-export function readBody(req: IncomingMessage, maxBytes = 64 * 1024): Promise<unknown> {
+export function readBody(req: IncomingMessage, maxBytes = 102_400): Promise<unknown> {
   return new Promise((resolve, reject) => {
+    // Fast-reject via Content-Length header
+    const cl = req.headers["content-length"];
+    if (cl && Number(cl) > maxBytes) {
+      req.destroy();
+      reject(new PayloadTooLargeError());
+      return;
+    }
+
     let body = "";
     let size = 0;
     req.on("data", (chunk: Buffer | string) => {
       size += typeof chunk === "string" ? chunk.length : chunk.byteLength;
       if (size > maxBytes) {
         req.destroy();
-        reject(new Error("Request body too large"));
+        reject(new PayloadTooLargeError());
         return;
       }
       body += chunk;
