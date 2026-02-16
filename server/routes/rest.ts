@@ -232,6 +232,24 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/skill — Return SKILL.md for agent self-discovery ───
+  if (url === "/api/skill" && method === "GET") {
+    try {
+      const { readFile } = await import("node:fs/promises");
+      const { resolve } = await import("node:path");
+      const skillPath = resolve(import.meta.dirname ?? ".", "../../skills/kaspa-telecom/SKILL.md");
+      const content = await readFile(skillPath, "utf-8");
+      res.writeHead(200, {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(content);
+    } catch {
+      json(res, 404, { error: "SKILL.md not found" });
+    }
+    return true;
+  }
+
   // ── /api/messages/recent — Recent messages (all agents) ─────
   if (url.startsWith("/api/messages/recent") && method === "GET") {
     const reqUrl = new URL(req.url ?? "/", "http://localhost");
