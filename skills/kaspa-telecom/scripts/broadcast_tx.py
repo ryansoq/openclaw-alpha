@@ -50,6 +50,11 @@ def reconstruct_transaction(tx_dict: dict) -> Transaction:
                 spk_data.get("version", 0),
                 spk_data.get("scriptPublicKey", ""),
             )
+        elif isinstance(spk_data, str) and len(spk_data) > 4:
+            # serialize_to_dict format: first 4 hex chars = version (2 bytes LE)
+            version = int(spk_data[:4], 16)
+            script = spk_data[4:]
+            spk = ScriptPublicKey(version, script)
         else:
             # scriptPublicKey hex format: [version:2bytes][script]
             # version is first 4 hex chars (2 bytes), extract it
@@ -94,7 +99,7 @@ async def broadcast(tx_dict: dict, network: str = "testnet") -> dict:
     try:
         result = await client.submit_transaction({
             "transaction": tx,
-            "allowOrphan": False,
+            "allow_orphan": False,
         })
         tx_id = result if isinstance(result, str) else str(result)
         return {"success": True, "tx_id": tx_id, "network": network}
