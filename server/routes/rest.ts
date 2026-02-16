@@ -504,7 +504,7 @@ export async function handleRestRoute(
         return true;
       }
 
-      // Broadcast via Kaspa REST API directly (no Python subprocess needed)
+      // Broadcast via local kaspad RPC first (most reliable), REST API fallback
       const signedTxs = body.signed_txs as any[];
       if (!signedTxs?.length) {
         json(res, 400, { ok: false, error: "No signed_txs provided" }); return true;
@@ -512,82 +512,72 @@ export async function handleRestRoute(
       const tx = signedTxs[0];
       console.log(`[broadcast] TX ${tx.id || "?"}, ${signedTxs.length} tx(s), network=${network}`);
 
-      // Normalize to REST API format
-      const restTx: any = {
-        version: tx.version ?? 0,
-        inputs: (tx.inputs || []).map((inp: any) => ({
-          previousOutpoint: inp.previousOutpoint || {
-            transactionId: inp.transactionId,
-            index: inp.index ?? 0,
-          },
-          signatureScript: inp.signatureScript || "",
-          sequence: inp.sequence ?? 0,
-          sigOpCount: inp.sigOpCount ?? 1,
-        })),
-        outputs: (tx.outputs || []).map((out: any) => {
-          const spk = out.scriptPublicKey;
-          let version = 0, script = "";
-          if (typeof spk === "object") {
-            version = spk.version ?? 0;
-            script = spk.scriptPublicKey || spk.script || "";
-          } else if (typeof spk === "string" && spk.length > 4) {
-            version = parseInt(spk.slice(0, 4), 16);
-            script = spk.slice(4);
-          }
-          return {
-            amount: out.value ?? out.amount ?? 0,
-            scriptPublicKey: { version, scriptPublicKey: script },
-          };
-        }),
-        lockTime: tx.lockTime ?? 0,
-        subnetworkId: tx.subnetworkId || "0000000000000000000000000000000000000000",
-        payload: tx.payload || "",
-        gas: tx.gas ?? 0,
-      };
+      // Try 1: Local kaspad via broadcast_tx.py (reconstruct + direct RPC)
+      const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
+      try {
+        const result = await execFile(
+          "python3", [scriptPath],
+          { timeout: 15_000, encoding: "utf-8", input: JSON.stringify(body) }
+        );
+        const parsed = JSON.parse(result.stdout.trim());
+        if (parsed.success) {
+          const txId = typeof parsed.tx_id === "string" ? parsed.tx_id : JSON.stringify(parsed.tx_id);
+          trackTxId(txId);
+          broadcastCount++;
+          console.log(`[broadcast] TX relayed via local RPC: ${txId} (${network})`);
+          json(res, 200, { ok: true, tx_id: txId, network });
+        } else {
+          throw new Error(parsed.error || "Local RPC failed");
+        }
+      } catch (localErr: unknown) {
+        const le = localErr as { stdout?: string; stderr?: string; message?: string };
+        console.error(`[broadcast] Local RPC failed:`, le.message?.slice(0, 100));
+        // Parse stdout for JSON error if available
+        let localError = "";
+        try { localError = JSON.parse(le.stdout?.trim() || "{}").error || ""; } catch {}
 
-      const restApiBase = network === "mainnet"
-        ? "https://api.kaspa.org"
-        : "https://api-tn10.kaspa.org";
-
-      const resp = await fetch(`${restApiBase}/transactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transaction: restTx, allowOrphan: false }),
-        signal: AbortSignal.timeout(15_000),
-      });
-      const respText = await resp.text();
-
-      if (resp.ok) {
-        // REST API returns the transaction ID
-        let txId = tx.id || "";
-        try { txId = JSON.parse(respText)?.transactionId || txId; } catch {}
-        trackTxId(txId);
-        broadcastCount++;
-        console.log(`[broadcast] TX relayed via REST: ${txId} (${network})`);
-        json(res, 200, { ok: true, tx_id: txId, network });
-      } else {
-        console.error(`[broadcast] REST API ${resp.status}: ${respText.slice(0, 200)}`);
-        // Fallback: try local kaspad via broadcast_tx.py
-        console.log(`[broadcast] REST failed, trying local kaspad via broadcast_tx.py...`);
-        const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
+        // Try 2: Kaspa REST API fallback
+        console.log(`[broadcast] Trying REST API fallback...`);
         try {
-          const result = await execFile(
-            "python3", [scriptPath],
-            { timeout: 15_000, encoding: "utf-8", input: JSON.stringify(body) }
-          );
-          const parsed = JSON.parse(result.stdout.trim());
-          if (parsed.success) {
-            trackTxId(parsed.tx_id);
+          const restTx: any = {
+            version: tx.version ?? 0,
+            inputs: (tx.inputs || []).map((inp: any) => ({
+              previousOutpoint: inp.previousOutpoint || { transactionId: inp.transactionId, index: inp.index ?? 0 },
+              signatureScript: inp.signatureScript || "",
+              sequence: inp.sequence ?? 0,
+              sigOpCount: inp.sigOpCount ?? 1,
+            })),
+            outputs: (tx.outputs || []).map((out: any) => {
+              const spk = out.scriptPublicKey;
+              let version = 0, script = "";
+              if (typeof spk === "object") { version = spk.version ?? 0; script = spk.scriptPublicKey || spk.script || ""; }
+              else if (typeof spk === "string" && spk.length > 4) { version = parseInt(spk.slice(0, 4), 16); script = spk.slice(4); }
+              return { amount: out.value ?? out.amount ?? 0, scriptPublicKey: { version, scriptPublicKey: script } };
+            }),
+            lockTime: tx.lockTime ?? 0,
+            subnetworkId: tx.subnetworkId || "0000000000000000000000000000000000000000",
+            payload: tx.payload || "", gas: tx.gas ?? 0,
+          };
+          const restApiBase = network === "mainnet" ? "https://api.kaspa.org" : "https://api-tn10.kaspa.org";
+          const resp = await fetch(`${restApiBase}/transactions`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transaction: restTx, allowOrphan: false }),
+            signal: AbortSignal.timeout(15_000),
+          });
+          const respText = await resp.text();
+          if (resp.ok) {
+            let txId = tx.id || "";
+            try { txId = JSON.parse(respText)?.transactionId || txId; } catch {}
+            trackTxId(txId);
             broadcastCount++;
-            console.log(`[broadcast] TX relayed via local RPC: ${parsed.tx_id} (${network})`);
-            json(res, 200, { ok: true, tx_id: parsed.tx_id, network });
+            console.log(`[broadcast] TX relayed via REST: ${txId} (${network})`);
+            json(res, 200, { ok: true, tx_id: txId, network });
           } else {
-            json(res, 400, { ok: false, error: parsed.error || "Local RPC broadcast failed" });
+            console.error(`[broadcast] REST API also failed: ${respText.slice(0, 200)}`);
+            json(res, 400, { ok: false, error: localError || `Broadcast failed: ${respText.slice(0, 200)}` });
           }
-        } catch (localErr: unknown) {
-          const le = localErr as { stdout?: string; message?: string };
-          console.error(`[broadcast] Local RPC also failed:`, le.message);
-          json(res, 400, { ok: false, error: `Kaspa REST API: ${respText.slice(0, 200)}` });
+        } catch (restErr) {
+          json(res, 400, { ok: false, error: localError || "Both local RPC and REST API failed" });
         }
       }
     } catch (err) {

@@ -275,5 +275,19 @@
     "txId": "d6dc8b51a02aa8d485a02949a21c0f4c0be890f56feb92e8e52cf9315f90aadb",
     "status": "confirmed",
     "id": "msg_1771267074195_da693m"
+  },
+  {
+    "fromAddress": "kaspatest:qqxhwz070a3tpmz57alnc3zp67uqrw8ll7rdws9nqp8nsvptarw3jl87m5j2m",
+    "toAddress": "kaspatest:qzx6ccd2kdvq9jwk8k72a67akn4ptavzh66n6qdxh9q7dfdxktyh6p7tmqu26",
+    "protocol": {
+      "v": 1,
+      "t": "msg",
+      "d": "local rpc test",
+      "a": {}
+    },
+    "timestamp": 1771270505580,
+    "txId": "09ba2b066f4e918af455c92ea5723efba65e0dc6dbefe873eaa536b6022cd468",
+    "status": "confirmed",
+    "id": "msg_1771270519990_ql0n6x"
   }
 ]
