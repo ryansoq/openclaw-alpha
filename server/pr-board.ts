@@ -68,13 +68,15 @@ export class PRBoard {
         "--limit", "30",
       ], { timeout: 15000 });
 
-      const raw = JSON.parse(stdout) as any[];
+      const raw = JSON.parse(stdout) as Record<string, unknown>[];
       const now = Date.now();
 
       this.cached = raw.map((pr): PullRequest => {
+        const reviewRequests = (pr.reviewRequests ?? []) as { login?: string; name?: string }[];
+        const reviews = (pr.reviews ?? []) as { author?: { login?: string } }[];
         const reviewers = [
-          ...(pr.reviewRequests ?? []).map((r: any) => r.login ?? r.name ?? "unknown"),
-          ...(pr.reviews ?? []).map((r: any) => r.author?.login ?? "unknown"),
+          ...reviewRequests.map(r => r.login ?? r.name ?? "unknown"),
+          ...reviews.map(r => r.author?.login ?? "unknown"),
         ];
         // Deduplicate
         const uniqueReviewers = [...new Set(reviewers)];

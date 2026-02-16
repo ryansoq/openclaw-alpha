@@ -65,6 +65,17 @@ export class MessageStore {
     return { total: this.messages.length, today };
   }
 
+  /** Total message count */
+  getTotal(): number {
+    return this.messages.length;
+  }
+
+  /** Messages in the last 24 hours */
+  getLast24h(): number {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    return this.messages.filter(m => m.timestamp >= cutoff).length;
+  }
+
   private load(): void {
     try {
       if (existsSync(MESSAGES_PATH)) {

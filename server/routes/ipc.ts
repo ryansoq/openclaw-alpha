@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ServerContext } from "../context.js";
-import type { WorldMessage, JoinMessage, PositionMessage, AgentSkillDeclaration } from "../types.js";
+import type { WorldMessage, JoinMessage, PositionMessage, AgentSkillDeclaration, ChatMessage, WhisperMessage } from "../types.js";
 import { getZoneForStatus, getActionForStatus, isValidStatus } from "../status-zone.js";
 
 /**
@@ -242,7 +242,7 @@ export async function handleIpcCommand(
       const limit = Math.min(Number(wa.limit ?? 20), 100);
       const allEvents = ctx.eventStore.query(since, 500);
       const whispers = allEvents
-        .filter(e => e.worldType === "whisper" && ((e as any).targetId === wa.agent || e.agentId === wa.agent))
+        .filter(e => e.worldType === "whisper" && ((e as WhisperMessage).targetId === wa.agent || e.agentId === wa.agent))
         .slice(-limit);
       return { ok: true, agent: wa.agent, whispers, count: whispers.length };
     }
@@ -255,7 +255,7 @@ export async function handleIpcCommand(
       const agentLower = ma.agent.toLowerCase();
       const allEvents = ctx.eventStore.query(since, 500);
       const mentions = allEvents
-        .filter(e => e.worldType === "chat" && e.agentId !== ma.agent && ((e as any).text ?? "").toLowerCase().includes(`@${agentLower}`))
+        .filter(e => e.worldType === "chat" && e.agentId !== ma.agent && (e as ChatMessage).text.toLowerCase().includes(`@${agentLower}`))
         .slice(-limit);
       return { ok: true, agent: ma.agent, mentions, count: mentions.length };
     }
@@ -327,7 +327,7 @@ export async function handleIpcCommand(
 
     // ── Dashboard ──────────────────────────────────────────
     case "board-update": {
-      const a = args as { agentId: string; widgets?: any[] };
+      const a = args as { agentId: string; widgets?: unknown[] };
       if (!a?.agentId) throw new Error("agentId required");
       const token = (parsed as { token?: string }).token;
       if (!ctx.auth.validate(token, a.agentId)) throw new Error("Invalid auth token");

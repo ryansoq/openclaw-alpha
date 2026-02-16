@@ -88,13 +88,15 @@ export class TxListener {
             if (fullTx?.payload) {
               await this.processTx(fullTx);
             }
-          } catch (err: any) {
+          } catch (err: unknown) {
             // Individual TX fetch failure — skip, don't block others
-            console.warn(`[tx-listener] Error fetching TX ${txId.slice(0, 16)}:`, err.message ?? err);
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[tx-listener] Error fetching TX ${txId.slice(0, 16)}:`, msg);
           }
         }
-      } catch (err: any) {
-        console.warn(`[tx-listener] Error polling ${agent.agentId}:`, err.message ?? err);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[tx-listener] Error polling ${agent.agentId}:`, msg);
       }
     }
 

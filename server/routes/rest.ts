@@ -1,7 +1,16 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { execFile as execFileCb } from "node:child_process";
+import { promisify } from "node:util";
 import type { ServerContext } from "../context.js";
 import { json, readBody, PayloadTooLargeError } from "../http-utils.js";
 import { verifyTelegramAuth } from "../telegram-auth.js";
+import type { ChatMessage, WhisperMessage } from "../types.js";
+
+const execFile = promisify(execFileCb);
+
+// ── Broadcast counter ────────────────────────────────────────
+let broadcastCount = 0;
+const serverStartedAt = new Date().toISOString();
 
 // ── TX dedup set (防 Replay Attack) ──────────────────────────
 const broadcastedTxIds = new Set<string>();
@@ -56,7 +65,7 @@ export async function handleRestRoute(
     const agentLower = agent.toLowerCase();
     const allEvents = ctx.eventStore.query(since, 500);
     const mentions = allEvents
-      .filter(e => e.worldType === "chat" && e.agentId !== agent && ((e as any).text ?? "").toLowerCase().includes(`@${agentLower}`))
+      .filter(e => e.worldType === "chat" && e.agentId !== agent && (e as ChatMessage).text.toLowerCase().includes(`@${agentLower}`))
       .slice(-limit);
     json(res, 200, { ok: true, agent, mentions, count: mentions.length });
     return true;
@@ -262,14 +271,26 @@ export async function handleRestRoute(
   // ── /api/stats — Platform statistics ──────────────────────
   if (url === "/api/stats" && method === "GET") {
     const allProfiles = ctx.registry.getAll();
-    const activeIds = ctx.state.getActiveAgentIds();
-    const msgStats = ctx.messageStore.getStats();
+    const onlineAgents = ctx.registry.getOnline();
     json(res, 200, {
       ok: true,
-      totalUsers: allProfiles.length,
-      onlineUsers: activeIds.size,
-      todayMessages: msgStats.today,
-      totalMessages: msgStats.total,
+      uptime: Math.floor(process.uptime()),
+      agents: {
+        total: allProfiles.length,
+        online: onlineAgents.length,
+      },
+      messages: {
+        total: ctx.messageStore.getTotal(),
+        last24h: ctx.messageStore.getLast24h(),
+      },
+      transactions: {
+        broadcast: broadcastCount,
+        indexed: ctx.messageStore.getTotal(),
+      },
+      server: {
+        startedAt: serverStartedAt,
+        version: "0.1.0",
+      },
     });
     return true;
   }
@@ -438,17 +459,16 @@ export async function handleRestRoute(
         json(res, 400, { ok: false, error: "Invalid network (testnet or mainnet)" }); return true;
       }
 
-      const { execFileSync } = await import("node:child_process");
       const scriptPath = new URL(
         "../../skills/kaspa-telecom/scripts/get_utxos.py",
         import.meta.url
       ).pathname;
 
-      const result = execFileSync(
+      const { stdout } = await execFile(
         "python3", [scriptPath, address, "--network", network],
         { timeout: 30_000, encoding: "utf-8", maxBuffer: 50 * 1024 * 1024 }
       );
-      const parsed = JSON.parse(result.trim());
+      const parsed = JSON.parse(stdout.trim());
 
       if (parsed.success) {
         console.log(`[utxos] ${address}: ${parsed.utxo_count} UTXOs`);
@@ -485,25 +505,25 @@ export async function handleRestRoute(
       }
 
       // Call broadcast_tx.py — uses kaspad wRPC directly with dict format
-      const { execFileSync } = await import("node:child_process");
       const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
       const input = JSON.stringify(body);
-      const result = execFileSync(
+      const { stdout } = await execFile(
         "python3", [scriptPath],
         { timeout: 30_000, encoding: "utf-8", input }
       );
-      const parsed = JSON.parse(result.trim());
+      const parsed = JSON.parse(stdout.trim());
 
       if (parsed.success) {
         // Track real tx_id from kaspad response for replay protection
         trackTxId(parsed.tx_id);
+        broadcastCount++;
         console.log(`[broadcast] TX relayed: ${parsed.tx_id} (${network})`);
         json(res, 200, { ok: true, tx_id: parsed.tx_id, network });
       } else {
         json(res, 400, { ok: false, error: parsed.error || "Broadcast failed" });
       }
     } catch (err) {
-      console.error(`[broadcast] Error:`, err);
+      console.error(`[broadcast] Error:`, err instanceof Error ? err.message : String(err));
       if (err instanceof PayloadTooLargeError) {
         json(res, 413, { ok: false, error: "Payload too large" });
       } else {

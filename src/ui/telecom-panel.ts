@@ -12,10 +12,12 @@ interface RecentMessage {
 }
 
 interface PlatformStats {
-  totalUsers: number;
-  onlineUsers: number;
-  todayMessages: number;
-  totalMessages: number;
+  ok: boolean;
+  uptime: number;
+  agents: { total: number; online: number };
+  messages: { total: number; last24h: number };
+  transactions: { broadcast: number; indexed: number };
+  server: { startedAt: string; version: string };
 }
 
 /**
@@ -70,7 +72,7 @@ export function setupTelecomPanel(serverBaseUrl: string): TelecomPanelAPI {
       const d = await r.json();
       return d as PlatformStats;
     } catch {
-      return { totalUsers: 0, onlineUsers: 0, todayMessages: 0, totalMessages: 0 };
+      return { ok: false, uptime: 0, agents: { total: 0, online: 0 }, messages: { total: 0, last24h: 0 }, transactions: { broadcast: 0, indexed: 0 }, server: { startedAt: "", version: "0.1.0" } };
     }
   }
 
@@ -112,11 +114,18 @@ export function setupTelecomPanel(serverBaseUrl: string): TelecomPanelAPI {
     const statsGrid = document.createElement("div");
     statsGrid.className = "tp-stats-grid";
 
+    const uptimeMin = Math.floor(stats.uptime / 60);
+    const uptimeStr = uptimeMin < 60
+      ? `${uptimeMin}m`
+      : `${Math.floor(uptimeMin / 60)}h ${uptimeMin % 60}m`;
+
     const statItems = [
-      { label: "Total Users", value: String(stats.totalUsers), icon: "👥" },
-      { label: "Online", value: String(stats.onlineUsers), icon: "🟢" },
-      { label: "Today Msgs", value: String(stats.todayMessages), icon: "💬" },
-      { label: "Total Msgs", value: String(stats.totalMessages), icon: "📨" },
+      { label: "Agents", value: `${stats.agents.online}/${stats.agents.total}`, icon: "👥" },
+      { label: "Uptime", value: uptimeStr, icon: "⏱️" },
+      { label: "Last 24h", value: String(stats.messages.last24h), icon: "💬" },
+      { label: "Total Msgs", value: String(stats.messages.total), icon: "📨" },
+      { label: "Broadcasts", value: String(stats.transactions.broadcast), icon: "📡" },
+      { label: "Version", value: stats.server.version, icon: "🏷️" },
     ];
     for (const s of statItems) {
       const card = document.createElement("div");
@@ -242,7 +251,7 @@ export function setupTelecomPanel(serverBaseUrl: string): TelecomPanelAPI {
   }
 
   // Initial empty render
-  render({ totalUsers: 0, onlineUsers: 0, todayMessages: 0, totalMessages: 0 }, []);
+  render({ ok: false, uptime: 0, agents: { total: 0, online: 0 }, messages: { total: 0, last24h: 0 }, transactions: { broadcast: 0, indexed: 0 }, server: { startedAt: "", version: "0.1.0" } }, []);
 
   return {
     updateAgents(profiles: AgentProfile[]) {
