@@ -507,14 +507,26 @@ export async function handleRestRoute(
       // Call broadcast_tx.py — uses kaspad wRPC directly with dict format
       const scriptPath = new URL("../../skills/kaspa-telecom/scripts/broadcast_tx.py", import.meta.url).pathname;
       const input = JSON.stringify(body);
-      const { stdout } = await execFile(
-        "python3", [scriptPath],
-        { timeout: 30_000, encoding: "utf-8", input }
-      );
+      let stdout: string;
+      try {
+        const result = await execFile(
+          "python3", [scriptPath],
+          { timeout: 30_000, encoding: "utf-8", input }
+        );
+        stdout = result.stdout;
+      } catch (execErr: unknown) {
+        // execFile throws on non-zero exit — but stdout may still have JSON error
+        const e = execErr as { stdout?: string; stderr?: string; message?: string };
+        stdout = e.stdout ?? "";
+        if (!stdout.trim()) {
+          console.error(`[broadcast] Script error:`, e.stderr || e.message);
+          json(res, 500, { ok: false, error: "Broadcast script error" });
+          return true;
+        }
+      }
       const parsed = JSON.parse(stdout.trim());
 
       if (parsed.success) {
-        // Track real tx_id from kaspad response for replay protection
         trackTxId(parsed.tx_id);
         broadcastCount++;
         console.log(`[broadcast] TX relayed: ${parsed.tx_id} (${network})`);

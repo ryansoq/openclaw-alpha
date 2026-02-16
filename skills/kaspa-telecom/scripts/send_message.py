@@ -101,15 +101,14 @@ async def send_message(
 
         tx_ids = []
         while True:
-            result = generator.next()
-            if not result:
+            try:
+                pending_tx = next(generator)
+            except StopIteration:
                 break
-            tx = result["transaction"]
-            signed = tx.sign([private_key])
-            tx_id = await client.submit_transaction({
-                "transaction": signed,
-                "allowOrphan": False,
-            })
+            if not pending_tx:
+                break
+            pending_tx.sign([private_key])
+            tx_id = await pending_tx.submit(client)
             tx_ids.append(tx_id)
 
         if not tx_ids:
