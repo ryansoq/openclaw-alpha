@@ -28,15 +28,10 @@ export function setupTelecomPanel(serverBaseUrl: string): TelecomPanelAPI {
   let visible = false;
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
-  // ── Toggle button (top-left) ──────────────────────────────
-  const toggleBtn = document.createElement("button");
-  toggleBtn.id = "telecom-toggle";
-  toggleBtn.textContent = "📡";
-  toggleBtn.title = "Telecom Dashboard";
-  toggleBtn.addEventListener("click", () => {
+  // ── Toggle via toolbar event ────────────────────────────────
+  window.addEventListener("toolbar:telecom", () => {
     visible ? hide() : show();
   });
-  document.body.appendChild(toggleBtn);
 
   // ── Panel container ───────────────────────────────────────
   const panel = document.createElement("div");
@@ -46,7 +41,6 @@ export function setupTelecomPanel(serverBaseUrl: string): TelecomPanelAPI {
   function show() {
     visible = true;
     panel.classList.add("visible");
-    toggleBtn.classList.add("active");
     refresh();
     refreshTimer = setInterval(refresh, 15_000);
   }
@@ -54,7 +48,6 @@ export function setupTelecomPanel(serverBaseUrl: string): TelecomPanelAPI {
   function hide() {
     visible = false;
     panel.classList.remove("visible");
-    toggleBtn.classList.remove("active");
     if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   }
 

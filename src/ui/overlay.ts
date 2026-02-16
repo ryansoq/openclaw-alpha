@@ -72,9 +72,19 @@ export function setupOverlay(): OverlayAPI {
     window.dispatchEvent(new CustomEvent("toolbar:toggle3d"));
   });
 
+  const telecomBtn = document.createElement("button");
+  telecomBtn.className = "toolbar-btn";
+  telecomBtn.textContent = "📡";
+  telecomBtn.title = "Telecom Dashboard";
+  telecomBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent("toolbar:telecom"));
+  });
+
   toolbar.appendChild(zoomInBtn);
   toolbar.appendChild(zoomOutBtn);
   toolbar.appendChild(toggle3dBtn);
+  toolbar.appendChild(telecomBtn);
 
   container.appendChild(header);
   container.appendChild(toolbar);

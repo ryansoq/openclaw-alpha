@@ -1,3 +1,6 @@
+process.on("uncaughtException", (err) => { console.error("[FATAL] uncaughtException:", err); });
+process.on("unhandledRejection", (err) => { console.error("[FATAL] unhandledRejection:", err); });
+
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { AgentRegistry } from "./agent-registry.js";
 import { WorldState } from "./world-state.js";
