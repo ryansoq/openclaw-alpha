@@ -14,6 +14,7 @@ import { setupPRBoard } from "./ui/pr-board.js";
 import { setupAgentChat } from "./ui/agent-chat.js";
 import { initDashboard, handleDashboardUpdate } from "./ui/dashboard.js";
 import { setupTelecomPanel } from "./ui/telecom-panel.js";
+import { setupGlobalToolbar } from "./ui/global-toolbar.js";
 import { initScreenDisplay, handleScreenUpdate } from "./ui/screen-display.js";
 import type { DashboardAPI } from "./ui/dashboard.js";
 import type { ScreenDisplayAPI } from "./ui/screen-display.js";
@@ -49,6 +50,7 @@ const buildingPanel = setupBuildingPanel(serverParam);
 const prBoard = setupPRBoard(serverBaseUrl || window.location.origin);
 const agentChat = setupAgentChat(serverBaseUrl || window.location.origin);
 const roomInfoBar = setupRoomInfoBar();
+const globalToolbar = setupGlobalToolbar();
 
 // Proximity greetings: show emote when agents meet
 const greetingEmojis = ["👋", "😊", "🙌", "✨", "🤝"];
@@ -298,6 +300,7 @@ ws.on("profiles", (_raw) => {
 ws.on("roomInfo", (_raw) => {
   const data = _raw as { info: RoomInfoMessage };
   roomInfoBar.update(data.info);
+  globalToolbar.updateRoomInfo(data.info);
 });
 
 ws.on("task-board", (_raw) => {
@@ -428,8 +431,13 @@ renderer.domElement.addEventListener("dblclick", () => {
 let viewportReportTimer = 0;
 const VIEWPORT_REPORT_INTERVAL = 1.0; // seconds
 
-// ── Toolbar events (from overlay toolbar) ──────────────────────
+// ── Toolbar events (from global toolbar + overlay) ─────────────
 let render3D = true;
+
+window.addEventListener("toolbar:chat", () => {
+  const el = document.getElementById("chat-log")!;
+  el.style.display = el.style.display === "none" ? "" : "none";
+});
 
 window.addEventListener("toolbar:toggle3d", () => {
   render3D = !render3D;
