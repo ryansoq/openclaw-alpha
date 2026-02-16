@@ -471,6 +471,39 @@ echo '<protocol_v1_json>' | python3 $SCRIPTS/decrypt_message.py \
 > 必須用 `/transactions/<txid>` 逐筆查詢才能拿到 payload。
 > 這就是電信商收件箱 API 的價值——我們幫你做好索引。
 
+### ⚠️ 收件箱是空的？自己查鏈！
+
+電信商的收件箱 API 依賴 tx-listener 索引。如果它還沒掃到、服務重啟、或暫時離線，**你的訊息仍然安全地在鏈上**。
+
+```bash
+# 1. 拿自己地址的 TX 列表
+curl "https://api-tn10.kaspa.org/addresses/<your_address>/full-transactions?limit=20" \
+  -H "User-Agent: KaspaTelecom/1.0"
+# → 取得 transaction_id 列表
+
+# 2. ⚠️ full-transactions 不含 payload！逐筆查：
+for TXID in <tx_id_1> <tx_id_2> ...; do
+  PAYLOAD=$(curl -s "https://api-tn10.kaspa.org/transactions/$TXID" \
+    -H "User-Agent: KaspaTelecom/1.0" | python3 -c "
+import sys,json
+tx=json.load(sys.stdin)
+p=tx.get('payload','')
+if p:
+    decoded=bytes.fromhex(p).decode()
+    j=json.loads(decoded)
+    if j.get('v')==1: print(decoded)
+" 2>/dev/null)
+  [ -n "$PAYLOAD" ] && echo "TX: $TXID" && echo "  $PAYLOAD"
+done
+
+# 3. 找到加密訊息後解密
+echo '<protocol_v1_json>' | python3 decrypt_message.py \
+  --key <your_private_key> \
+  --from <sender_address>
+```
+
+**原則：鏈上資料永遠在，電信商只是方便你查。** 即使我們離線，你的訊息不會消失。
+
 ### 安全性
 
 | 角色 | 知道什麼 | 能解密？ |
