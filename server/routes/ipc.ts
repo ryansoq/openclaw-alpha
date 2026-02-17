@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import type { ServerContext } from "../context.js";
 import type { WorldMessage, JoinMessage, PositionMessage, AgentSkillDeclaration, ChatMessage, WhisperMessage } from "../types.js";
 import { getZoneForStatus, getActionForStatus, isValidStatus } from "../status-zone.js";
+import type { Widget } from "../dashboard-store.js";
 
 /**
  * Handle IPC commands. Called from POST /ipc endpoint.
@@ -327,7 +328,7 @@ export async function handleIpcCommand(
 
     // ── Dashboard ──────────────────────────────────────────
     case "board-update": {
-      const a = args as { agentId: string; widgets?: unknown[] };
+      const a = args as { agentId: string; widgets?: Widget[] };
       if (!a?.agentId) throw new Error("agentId required");
       const token = (parsed as { token?: string }).token;
       if (!ctx.auth.validate(token, a.agentId)) throw new Error("Invalid auth token");

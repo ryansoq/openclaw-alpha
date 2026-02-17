@@ -68,12 +68,24 @@ export class PRBoard {
         "--limit", "30",
       ], { timeout: 15000 });
 
-      const raw = JSON.parse(stdout) as Record<string, unknown>[];
+      interface GhPR {
+        number: number;
+        title: string;
+        author: { login?: string };
+        url: string;
+        reviewRequests: { login?: string; name?: string }[];
+        reviews: { author?: { login?: string }; state?: string }[];
+        createdAt: string;
+        updatedAt: string;
+        isDraft: boolean;
+      }
+
+      const raw = JSON.parse(stdout) as GhPR[];
       const now = Date.now();
 
       this.cached = raw.map((pr): PullRequest => {
-        const reviewRequests = (pr.reviewRequests ?? []) as { login?: string; name?: string }[];
-        const reviews = (pr.reviews ?? []) as { author?: { login?: string } }[];
+        const reviewRequests = pr.reviewRequests ?? [];
+        const reviews = pr.reviews ?? [];
         const reviewers = [
           ...reviewRequests.map(r => r.login ?? r.name ?? "unknown"),
           ...reviews.map(r => r.author?.login ?? "unknown"),
@@ -85,12 +97,12 @@ export class PRBoard {
         let status: PullRequest["status"] = "open";
         if (pr.isDraft) {
           status = "draft";
-        } else if (pr.reviews?.length) {
-          const lastReview = pr.reviews[pr.reviews.length - 1];
+        } else if (reviews.length) {
+          const lastReview = reviews[reviews.length - 1];
           if (lastReview.state === "APPROVED") status = "approved";
           else if (lastReview.state === "CHANGES_REQUESTED") status = "changes-requested";
           else status = "review";
-        } else if (pr.reviewRequests?.length) {
+        } else if (reviewRequests.length) {
           status = "review";
         }
 
