@@ -25,6 +25,8 @@ export interface AgentProfile {
   avatar?: string;
   webhookUrl?: string;
   webhookHeaders?: Record<string, string>;
+  telegramBotToken?: string;   // TG Bot token for @mention wake
+  telegramChatId?: string;     // TG chat_id to send wake message to
   kaspaAddress?: string;
   notifyMethod?: 'webhook' | 'ws' | 'poll';  // default: 'poll'
   contacts?: AgentContact[];

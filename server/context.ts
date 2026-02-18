@@ -8,6 +8,7 @@ import type { ClientManager } from "./client-manager.js";
 import type { GameLoop } from "./game-loop.js";
 import type { AuthManager } from "./auth.js";
 import type { WebhookNotifier } from "./webhook.js";
+import type { VisitorLog } from "./visitor-log.js";
 import type { TaskBoard } from "./task-board.js";
 import type { PRBoard } from "./pr-board.js";
 import type { DashboardStore } from "./dashboard-store.js";
@@ -27,6 +28,7 @@ export interface ServerContext {
   gameLoop: GameLoop;
   auth: AuthManager;
   webhook: WebhookNotifier;
+  visitorLog: VisitorLog;
   taskBoard: TaskBoard;
   prBoard: PRBoard;
   dashboardStore: DashboardStore;

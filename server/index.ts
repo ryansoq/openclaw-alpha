@@ -14,6 +14,7 @@ import { GameLoop, TICK_RATE } from "./game-loop.js";
 import { EventStore } from "./event-store.js";
 import { AuthManager } from "./auth.js";
 import { WebhookNotifier } from "./webhook.js";
+import { VisitorLog } from "./visitor-log.js";
 import { TaskBoard } from "./task-board.js";
 import { PRBoard } from "./pr-board.js";
 import { DashboardStore } from "./dashboard-store.js";
@@ -43,6 +44,7 @@ const clawhub = new ClawhubStore();
 const eventStore = new EventStore();
 const auth = new AuthManager();
 const webhook = new WebhookNotifier(registry);
+const visitorLog = new VisitorLog();
 const taskBoard = new TaskBoard();
 const prBoard = new PRBoard(process.env.PR_BOARD_REPO ?? "ryansoq/openclaw-alpha");
 prBoard.start();
@@ -97,7 +99,7 @@ const getRoomInfo = createRoomInfoGetter(
 
 const ctx: ServerContext = {
   registry, state, eventStore, commandQueue, clawhub,
-  nostr, clientManager, gameLoop, auth, webhook, taskBoard, prBoard,
+  nostr, clientManager, gameLoop, auth, webhook, visitorLog, taskBoard, prBoard,
   dashboardStore, screenStore, messageStore, config, getRoomInfo,
 };
 

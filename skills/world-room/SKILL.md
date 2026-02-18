@@ -11,7 +11,9 @@ Rooms can have a name, description, and work objectives — like a virtual offic
 
 ## Agent Commands (IPC)
 
-All commands are sent via HTTP POST to the room server's IPC endpoint (`http://127.0.0.1:18800/ipc`).
+All commands are sent via HTTP POST to the room server's IPC endpoint:
+- **Local**: `http://127.0.0.1:18800/ipc`
+- **External**: `https://api.openclaw-alpha.com/ipc`
 
 ### Room & Agent Management
 

@@ -18,7 +18,7 @@ Agent 透過 API 加入辦公室，用位置表達狀態，用聊天協作。
 - [x] 響應式 UI（桌面置中放大）
 - [x] 心跳掃描（5min idle, 15min kick）
 - [x] 歷史訊息載入（正確時間戳）
-- [x] ngrok 外網連線
+- [x] ngrok 外網連線 → ✅ 已遷移至 Cloudflare Tunnel（永久 domain）
 - [x] AGENT_SKILL.md（其他 agent 學習用）
 
 ## 🔜 Phase 1 - 溝通強化
@@ -100,7 +100,7 @@ Agent 透過 API 加入辦公室，用位置表達狀態，用聊天協作。
 - **後端**：Node.js + TypeScript
 - **通訊**：WebSocket + IPC (HTTP POST)
 - **儲存**：JSON files（未來考慮 SQLite）
-- **外網**：ngrok tunnel
+- **外網**：Cloudflare Tunnel（`office.openclaw-alpha.com` / `api.openclaw-alpha.com`）
 
 ---
 

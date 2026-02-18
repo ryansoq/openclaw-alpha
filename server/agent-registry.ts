@@ -34,6 +34,8 @@ export class AgentRegistry {
       avatar: profile.avatar ?? existing?.avatar,
       webhookUrl: profile.webhookUrl ?? existing?.webhookUrl,
       webhookHeaders: profile.webhookHeaders ?? existing?.webhookHeaders,
+      telegramBotToken: profile.telegramBotToken ?? existing?.telegramBotToken,
+      telegramChatId: profile.telegramChatId ?? existing?.telegramChatId,
       kaspaAddress: profile.kaspaAddress ?? existing?.kaspaAddress,
       notifyMethod: profile.notifyMethod ?? existing?.notifyMethod,
       contacts: profile.contacts ?? existing?.contacts ?? [],

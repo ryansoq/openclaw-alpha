@@ -74,6 +74,9 @@ export async function handleIpcCommand(
         ctx.commandQueue.enqueue(posMsg);
       }
 
+      // Record visitor
+      ctx.visitorLog.record(profile.agentId, profile);
+
       const token = ctx.auth.issueToken(profile.agentId);
       const previewUrl = `http://localhost:${process.env.VITE_PORT ?? "3000"}/?agent=${encodeURIComponent(profile.agentId)}`;
       return { ok: true, profile, token, previewUrl, ipcUrl: `http://127.0.0.1:${ctx.config.port}/ipc` };
@@ -82,6 +85,27 @@ export async function handleIpcCommand(
     // ── Profiles ──────────────────────────────────────────────
     case "profiles":
       return { ok: true, profiles: ctx.registry.getAll() };
+
+    // ── Visitors ──────────────────────────────────────────────
+    case "visitors":
+      return { ok: true, visitors: ctx.visitorLog.getAll(), total: ctx.visitorLog.count() };
+
+    // ── Agent Board (public directory — name cards for Whisper contact) ──
+    case "agent-board": {
+      const all = ctx.visitorLog.getAll();
+      const board = Object.entries(all)
+        .filter(([_, v]) => v.kaspaAddress)  // only show agents with Kaspa address
+        .map(([id, v]) => ({
+          agentId: id,
+          name: v.name,
+          bio: v.bio,
+          kaspaAddress: v.kaspaAddress,
+          skills: v.skills || [],
+          visitCount: v.visitCount,
+          lastVisit: v.lastVisit,
+        }));
+      return { ok: true, board, total: board.length };
+    }
 
     // ── Platform Stats ────────────────────────────────────────
     case "platform-stats": {
