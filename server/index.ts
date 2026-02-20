@@ -113,8 +113,8 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
   if (method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, X-Whisper-Key",
     });
     res.end();
     return;
@@ -122,6 +122,40 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 
   // REST API routes
   if (await handleRestRoute(req, res, ctx)) return;
+
+  // ── Whisper API proxy (/whisper/* → localhost:18803) ──────────
+  if (url.startsWith("/whisper/") || url === "/whisper") {
+    try {
+      const targetUrl = `http://127.0.0.1:18803${url}`;
+      const headers: Record<string, string> = { "host": "127.0.0.1:18803" };
+      if (req.headers["content-type"]) headers["content-type"] = req.headers["content-type"] as string;
+      if (req.headers["x-whisper-key"]) headers["x-whisper-key"] = req.headers["x-whisper-key"] as string;
+      if (req.headers["accept"]) headers["accept"] = req.headers["accept"] as string;
+
+      const body = method === "GET" || method === "HEAD" ? undefined : await new Promise<Buffer>((resolve) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (c: Buffer) => chunks.push(c));
+        req.on("end", () => resolve(Buffer.concat(chunks)));
+      });
+
+      const proxyRes = await fetch(targetUrl, {
+        method,
+        headers,
+        body: body && body.length > 0 ? body : undefined,
+      });
+
+      const resBody = await proxyRes.text();
+      res.writeHead(proxyRes.status, {
+        "Content-Type": proxyRes.headers.get("content-type") ?? "application/json",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(resBody);
+      return;
+    } catch (err) {
+      json(res, 502, { error: "Whisper API unavailable" });
+      return;
+    }
+  }
 
   // IPC JSON API
   if (method === "POST" && (url === "/" || url === "/ipc")) {
