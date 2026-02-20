@@ -41,10 +41,7 @@ async def get_transactions(address: str, network: str = "mainnet") -> list[dict]
     Returns:
         List of transaction info dicts
     """
-    # Map short names to full network IDs
-    network_map = {"testnet": "testnet-10", "mainnet": "mainnet"}
-    net_id = network_map.get(network, network)
-    client = RpcClient(resolver=Resolver(), network_id=net_id)
+    client = RpcClient(resolver=Resolver(), network_id=network)
     await client.connect()
     
     try:
