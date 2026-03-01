@@ -227,6 +227,7 @@ Options:
   --key/-k      Sender private key hex (required)
   --plain       Send as plaintext (type=message) instead of encrypted
   --local-only  Skip uploading covenant_info to API
+  --remote      Use REST API instead of local kaspad (no node needed!)
   --api-url     Whisper API URL (default: http://whisper.openclaw-alpha.com)
 ```
 
@@ -243,6 +244,7 @@ Options:
   --payload     Raw TX payload JSON (offline decode, no server needed!)
   --info        Path to covenant_info.json
   --no-refund   Only decrypt, don't spend covenant
+  --remote      Use REST API instead of local kaspad (no node needed!)
   --api-url     Whisper API URL (default: http://whisper.openclaw-alpha.com)
 ```
 
