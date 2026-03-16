@@ -2,7 +2,11 @@ import type { AgentRegistry } from "./agent-registry.js";
 import { execFile } from "node:child_process";
 
 /** Cooldown per agent to avoid spamming webhooks (ms) */
-const COOLDOWN_MS = 10_000; // 10 seconds (was 60s)
+const COOLDOWN_MS = 30_000; // 30 seconds
+
+/** Pair cooldown to prevent AI ping-pong (A↔B infinite loop) */
+const PAIR_COOLDOWN_MS = 5 * 60_000; // 5 minutes
+const PAIR_MAX_NOTIFICATIONS = 2; // max notifications per pair within cooldown window
 
 /**
  * Webhook notifier: sends notifications to agents when they are @mentioned.
@@ -14,11 +18,53 @@ const COOLDOWN_MS = 10_000; // 10 seconds (was 60s)
  */
 export class WebhookNotifier {
   private lastNotified = new Map<string, number>();
+  private pairCooldown = new Map<string, { count: number; firstTime: number }>();
+
+  /** Get sorted pair key for ping-pong tracking */
+  private static pairKey(a: string, b: string): string {
+    return [a, b].sort().join(":");
+  }
+
+  /** Check if a pair has exceeded its notification limit */
+  private isPairThrottled(senderId: string, targetId: string, now: number): boolean {
+    const key = WebhookNotifier.pairKey(senderId, targetId);
+    const entry = this.pairCooldown.get(key);
+    if (!entry) return false;
+    // Reset if window expired
+    if (now - entry.firstTime >= PAIR_COOLDOWN_MS) {
+      this.pairCooldown.delete(key);
+      return false;
+    }
+    return entry.count >= PAIR_MAX_NOTIFICATIONS;
+  }
+
+  /** Record a pair notification */
+  private recordPairNotification(senderId: string, targetId: string, now: number): void {
+    const key = WebhookNotifier.pairKey(senderId, targetId);
+    const entry = this.pairCooldown.get(key);
+    if (!entry || now - entry.firstTime >= PAIR_COOLDOWN_MS) {
+      this.pairCooldown.set(key, { count: 1, firstTime: now });
+    } else {
+      entry.count++;
+    }
+  }
 
   /** Map Office agentId → Telegram bot username (for clickable @mentions) */
   private static TG_USERNAMES: Record<string, string> = {
     nami: "@NamiElf_bot",
     bob: "@BobFix_bot",
+  };
+
+  /** Map Office agentId → OpenClaw webhook endpoint (overrides profile) */
+  private static HOOK_ENDPOINTS: Record<string, { url: string; headers: Record<string, string> }> = {
+    nami: {
+      url: "https://stockholm-gates-buyer-treat.trycloudflare.com/hooks/wake",
+      headers: { Authorization: "Bearer I-eufROJc6UYPd4BkGthIKpMJkjbR07qtaZKPob5OVA" },
+    },
+    bob: {
+      url: "https://followed-toll-forgotten-therapist.trycloudflare.com/hooks/wake",
+      headers: { Authorization: "Bearer bob-webhook-secret-zvDEYPGin03HXd" },
+    },
   };
 
   private static tgName(agentId: string): string {
@@ -34,7 +80,7 @@ export class WebhookNotifier {
    * Scan a chat message for @mentions and fire notifications.
    * Call this after a chat message is enqueued.
    */
-  async notifyMentions(senderId: string, text: string): Promise<void> {
+  async notifyMentions(senderId: string, text: string, source?: string): Promise<void> {
     const mentions = text.match(/@([\w-]+)/g);
     if (!mentions) return;
 
@@ -49,16 +95,19 @@ export class WebhookNotifier {
       const profile = this.registry.get(targetId);
       if (!profile) continue;
 
-      // Need at least one notification method
-      const hasTelegram = profile.telegramBotToken && profile.telegramChatId;
-      const hasWebhook = profile.webhookUrl;
-      if (!hasTelegram && !hasWebhook) continue;
-
-      // Cooldown check
-      const lastTime = this.lastNotified.get(targetId) ?? 0;
+      // Per-agent cooldown (use separate key for kaspa-notify)
+      const cooldownKey = source === "kaspa-notify" ? `kaspa:${targetId}` : targetId;
+      const lastTime = this.lastNotified.get(cooldownKey) ?? 0;
       if (now - lastTime < COOLDOWN_MS) continue;
 
-      this.lastNotified.set(targetId, now);
+      // Pair cooldown to prevent AI ping-pong
+      if (this.isPairThrottled(senderId, targetId, now)) {
+        console.log(`[webhook] Pair ${senderId}↔${targetId} throttled (ping-pong prevention)`);
+        continue;
+      }
+
+      this.lastNotified.set(cooldownKey, now);
+      this.recordPairNotification(senderId, targetId, now);
 
       const payload = {
         event: "mention" as const,
@@ -67,8 +116,26 @@ export class WebhookNotifier {
         timestamp: now,
       };
 
-      // Prefer Telegram, fallback to HTTP webhook
-      if (hasTelegram) {
+      // Check for hardcoded hook endpoint first
+      const hookEndpoint = WebhookNotifier.HOOK_ENDPOINTS[targetId];
+      if (hookEndpoint) {
+        this.fireWebhook(targetId, hookEndpoint.url, hookEndpoint.headers, payload)
+          .catch(err => console.warn(`[webhook] Failed to notify ${targetId}:`, err.message ?? err));
+        continue;
+      }
+
+      // Need at least one notification method
+      const hasTelegram = profile.telegramBotToken && profile.telegramChatId;
+      const hasWebhook = profile.webhookUrl;
+      if (!hasTelegram && !hasWebhook) continue;
+
+      // Prefer webhookUrl (OpenClaw hooks), fallback to Telegram
+      if (hasWebhook) {
+        this.fireWebhook(targetId, profile.webhookUrl!, profile.webhookHeaders, payload)
+          .catch(err => {
+            console.warn(`[webhook] Failed to notify ${targetId}:`, err.message ?? err);
+          });
+      } else if (hasTelegram) {
         this.notifyTelegram(
           targetId,
           profile.telegramBotToken!,
@@ -78,11 +145,6 @@ export class WebhookNotifier {
         ).catch(err => {
           console.warn(`[telegram] Failed to notify ${targetId}:`, err.message ?? err);
         });
-      } else if (hasWebhook) {
-        this.fireWebhook(targetId, profile.webhookUrl!, profile.webhookHeaders, payload)
-          .catch(err => {
-            console.warn(`[webhook] Failed to notify ${targetId}:`, err.message ?? err);
-          });
       }
     }
   }
@@ -201,7 +263,7 @@ export class WebhookNotifier {
     return false;
   }
 
-  /** Fire an HTTP webhook (legacy) */
+  /** Fire an HTTP webhook — supports OpenClaw hooks/wake format */
   private async fireWebhook(
     agentId: string,
     url: string,
@@ -209,16 +271,25 @@ export class WebhookNotifier {
     payload?: unknown,
   ): Promise<void> {
     try {
+      // If URL ends with /hooks/wake, use OpenClaw wake format
+      const isOpenClawHook = url.includes("/hooks/wake");
+      const body = isOpenClawHook
+        ? JSON.stringify({
+            text: `🏢 Office: ${(payload as any)?.from ?? "someone"} mentioned you: ${(payload as any)?.text?.slice(0, 300) ?? ""}`,
+            mode: "now",
+          })
+        : JSON.stringify(payload);
+
       const resp = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...headers,
         },
-        body: JSON.stringify(payload),
+        body,
         signal: AbortSignal.timeout(5000),
       });
-      console.log(`[webhook] Notified ${agentId} → ${resp.status}`);
+      console.log(`[webhook] Notified ${agentId} → ${resp.status}${isOpenClawHook ? " (OpenClaw wake)" : ""}`);
     } catch (err) {
       throw err;
     }

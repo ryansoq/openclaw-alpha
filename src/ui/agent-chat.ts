@@ -93,7 +93,38 @@ export function setupAgentChat(serverUrl: string): AgentChatAPI {
     messagesEl.appendChild(loading);
     panel.appendChild(messagesEl);
 
-        // Read-only mode — no input needed (telecom operator view)
+    // Input area
+    const inputArea = document.createElement("div");
+    inputArea.className = "agent-chat-input-row";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "輸入訊息...";
+    input.className = "agent-chat-input";
+
+    const sendBtn = document.createElement("button");
+    sendBtn.textContent = "送出";
+    sendBtn.className = "agent-chat-send-btn";
+
+    const doSend = async () => {
+      const text = input.value.trim();
+      if (!text || !currentTarget) return;
+      input.value = "";
+      try {
+        const token = localStorage.getItem("oc_token") || "";
+        await fetch(`${serverUrl}/api/dm/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ from: currentMyId, to: currentTarget.agentId, text }),
+        });
+        loadMessages();
+      } catch { /* ignore */ }
+    };
+    sendBtn.addEventListener("click", doSend);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") doSend(); });
+    inputArea.appendChild(input);
+    inputArea.appendChild(sendBtn);
+    panel.appendChild(inputArea);
 
     // Load initial messages
     loadMessages();
@@ -105,14 +136,14 @@ export function setupAgentChat(serverUrl: string): AgentChatAPI {
     if (!container) return;
 
     try {
-      const url = `${serverUrl}/api/messages/${encodeURIComponent(currentMyId)}?with=${encodeURIComponent(currentTarget.agentId)}&limit=50`;
+      const url = `${serverUrl}/api/dm/conversation/${encodeURIComponent(currentTarget.agentId)}?agent=${encodeURIComponent(currentMyId)}&limit=50`;
       const resp = await fetch(url);
       const data = await resp.json();
 
       if (!data.ok) throw new Error(data.error);
 
       container.textContent = "";
-      const messages = data.messages as ChatMessage[];
+      const messages = (data.messages || []) as ChatMessage[];
 
       if (messages.length === 0) {
         const empty = document.createElement("div");
@@ -134,7 +165,7 @@ export function setupAgentChat(serverUrl: string): AgentChatAPI {
 
         const textEl = document.createElement("div");
         textEl.className = "agent-chat-text";
-        textEl.textContent = msg.text;
+        textEl.textContent = (msg as any).encrypted ? "🔒 加密訊息" : msg.text;
         bubble.appendChild(textEl);
 
         const metaEl = document.createElement("div");

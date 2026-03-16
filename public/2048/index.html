@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>2048 🌸</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#fff5f5;display:flex;justify-content:center;align-items:center;min-height:100vh;touch-action:none;user-select:none}
+.wrap{width:min(92vw,420px);text-align:center}
+h1{font-size:2.2rem;color:#e8a0bf;margin-bottom:.3rem;letter-spacing:2px}
+.info{display:flex;justify-content:center;gap:12px;margin-bottom:12px}
+.score-box{background:#fce4ec;border-radius:12px;padding:6px 18px;font-size:.85rem;color:#c06080}
+.score-box span{display:block;font-size:1.4rem;font-weight:700;color:#d4618c}
+.btn{background:#f8bbd0;border:none;border-radius:10px;padding:8px 18px;font-size:.95rem;color:#fff;cursor:pointer;margin:0 4px}
+.btn:active{background:#e8a0bf}
+#board{position:relative;background:#f3d9e0;border-radius:14px;padding:8px;margin:10px auto;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;aspect-ratio:1/1;width:100%}
+.cell{background:#fce4ec;border-radius:10px}
+.tile{position:absolute;display:flex;justify-content:center;align-items:center;border-radius:10px;font-weight:700;transition:top .12s ease,left .12s ease;z-index:1}
+.tile.merged{animation:pop .2s ease}
+.tile.new{animation:appear .2s ease}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes appear{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+.msg{position:absolute;inset:0;background:rgba(255,245,245,.75);display:flex;justify-content:center;align-items:center;border-radius:14px;font-size:1.6rem;font-weight:700;color:#d4618c;z-index:10;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>2048 🌸</h1>
+<div class="info">
+<div class="score-box">分數<span id="score">0</span></div>
+<div class="score-box">最高<span id="best">0</span></div>
+<button class="btn" onclick="init()">新遊戲</button>
+</div>
+<div id="board"><div class="msg" id="msg"></div></div>
+</div>
+<script>
+const N=4;let grid,score,best=+localStorage.getItem('b2048')||0,moving=false;
+const colors={0:'#fce4ec',2:'#fff0f3',4:'#ffe0e8',8:'#ffb6c1',16:'#ffa0b4',32:'#ff85a1',64:'#ff6b8a',128:'#f9c74f',256:'#f9b234',512:'#f4a020',1024:'#e88a1a',2048:'#e6567a'};
+const tcolors={2:'#c06080',4:'#c06080',8:'#fff',16:'#fff',32:'#fff',64:'#fff',128:'#fff',256:'#fff',512:'#fff',1024:'#fff',2048:'#fff'};
+const board=document.getElementById('board'),scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),msgEl=document.getElementById('msg');
+let cellSize,gap=8,pad=8;
+function calcSize(){const w=board.clientWidth;cellSize=(w-pad*2-gap*3)/4}
+function init(){grid=Array.from({length:N},()=>Array(N).fill(0));score=0;scoreEl.textContent=0;msgEl.style.display='none';addTile();addTile();render()}
+function addTile(){const e=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!grid[r][c])e.push([r,c]);if(!e.length)return;const[r,c]=e[Math.random()*e.length|0];grid[r][c]=Math.random()<.9?2:4}
+function render(merged=[]){calcSize();board.querySelectorAll('.tile').forEach(t=>t.remove());
+// bg cells
+if(!board.querySelector('.cell')){for(let i=0;i<16;i++){const d=document.createElement('div');d.className='cell';board.appendChild(d)}}
+for(let r=0;r<N;r++)for(let c=0;c<N;c++){const v=grid[r][c];if(!v)continue;
+const t=document.createElement('div');t.className='tile';
+const isMerged=merged.some(m=>m[0]===r&&m[1]===c);
+if(isMerged)t.classList.add('merged');
+const fs=v>=1024?.9:v>=128?1.1:1.3;
+Object.assign(t.style,{width:cellSize+'px',height:cellSize+'px',top:(pad+r*(cellSize+gap))+'px',left:(pad+c*(cellSize+gap))+'px',background:colors[v]||'#e6567a',color:tcolors[v]||'#fff',fontSize:(cellSize*fs/3.2)+'px'});
+t.textContent=v;board.appendChild(t)}
+bestEl.textContent=best}
+function slide(row){const f=row.filter(v=>v);const merged=[];for(let i=0;i<f.length-1;i++)if(f[i]===f[i+1]){f[i]*=2;score+=f[i];f[i+1]=0;merged.push(i)}
+const res=f.filter(v=>v);while(res.length<N)res.push(0);return{r:res,m:merged}}
+function move(dir){let moved=false;const mergedCells=[];
+const get=(r,c)=>dir===0?grid[c][r]:dir===1?grid[c][N-1-r]:dir===2?grid[r][c]:grid[N-1-r][c];
+const set=(r,c,v)=>{if(dir===0)grid[c][r]=v;else if(dir===1)grid[c][N-1-r]=v;else if(dir===2)grid[r][c]=v;else grid[N-1-r][c]=v};
+const mc=(r,c)=>{if(dir===0)return[c,r];if(dir===1)return[c,N-1-r];if(dir===2)return[r,c];return[N-1-r,c]};
+for(let i=0;i<N;i++){const row=[];for(let j=0;j<N;j++)row.push(get(j,i));
+const{r:nr,m}=slide(row);for(let j=0;j<N;j++){if(nr[j]!==get(j,i))moved=true;set(j,i,nr[j])}
+m.forEach(idx=>mergedCells.push(mc(idx,i)))}
+if(moved){if(score>best){best=score;localStorage.setItem('b2048',best)}
+scoreEl.textContent=score;addTile();render(mergedCells);
+if(isOver()){msgEl.textContent='遊戲結束 😿';msgEl.style.display='flex'}}
+return moved}
+function isOver(){for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(!grid[r][c])return false;if(c<N-1&&grid[r][c]===grid[r][c+1])return false;if(r<N-1&&grid[r][c]===grid[r+1][c])return false}return true}
+// keyboard
+document.addEventListener('keydown',e=>{const m={ArrowLeft:0,ArrowRight:1,ArrowUp:2,ArrowDown:3};if(m[e.key]!==undefined){e.preventDefault();move(m[e.key])}});
+// touch
+let sx,sy;
+document.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY});
+document.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;
+if(Math.max(Math.abs(dx),Math.abs(dy))<30)return;
+if(Math.abs(dx)>Math.abs(dy))move(dx<0?0:1);else move(dy<0?2:3)});
+window.addEventListener('resize',()=>render());
+init();
+</script>
+</body>
+</html>

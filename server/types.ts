@@ -91,7 +91,7 @@ export interface ChatMessage {
 }
 
 export interface WhisperMessage {
-  worldType: "whisper";
+  worldType: "dm";
   agentId: string;
   targetId: string;
   text: string;

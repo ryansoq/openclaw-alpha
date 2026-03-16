@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaspa Testnet-12 Wallet</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 100 100"><polygon points="50,5 95,30 95,70 50,95 5,70 5,30" fill="none" stroke="#49EACB" stroke-width="6"/><text x="50" y="62" text-anchor="middle" fill="#49EACB" font-size="36" font-weight="bold">K</text></svg>
+                <span>Kaspa Wallet</span>
+            </div>
+            <div class="network-badge">testnet-12</div>
+        </header>
+
+        <!-- Landing / Auth Screen -->
+        <div id="auth-screen" class="screen active">
+            <div class="hero">
+                <h1>Kaspa Testnet Wallet</h1>
+                <p>Secure browser-based wallet for Kaspa Testnet-12</p>
+            </div>
+
+            <div id="auth-box" class="card">
+                <!-- No wallet state -->
+                <div id="no-wallet">
+                    <h2>Get Started</h2>
+                    <p>Create a new wallet or import an existing one</p>
+                    <button id="btn-create" class="btn btn-primary">Create New Wallet</button>
+                    <button id="btn-import" class="btn btn-secondary">Import Wallet</button>
+                </div>
+
+                <!-- Has wallet state -->
+                <div id="has-wallet" style="display:none">
+                    <h2>Welcome Back</h2>
+                    <p>Enter your password to unlock</p>
+                    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+                    <button id="btn-login" class="btn btn-primary">Unlock Wallet</button>
+                    <div class="link-row">
+                        <a href="#" id="btn-reset">Reset Wallet</a>
+                    </div>
+                </div>
+
+                <!-- Create wallet form (password) -->
+                <div id="create-form" style="display:none">
+                    <h2>Create Wallet</h2>
+                    <p>Set a password to encrypt your wallet</p>
+                    <input type="password" id="create-password" placeholder="Password (min 6 chars)" autocomplete="new-password">
+                    <input type="password" id="create-password2" placeholder="Confirm Password" autocomplete="new-password">
+                    <button id="btn-do-create" class="btn btn-primary">Generate Mnemonic</button>
+                    <button id="btn-back-create" class="btn btn-ghost">Back</button>
+                </div>
+
+                <!-- Import wallet form -->
+                <div id="import-form" style="display:none">
+                    <h2>Import Wallet</h2>
+                    <!-- Import method tabs -->
+                    <div class="import-tabs">
+                        <button class="import-tab active" data-import="mnemonic">🔤 Mnemonic</button>
+                        <button class="import-tab" data-import="privkey">🔑 Private Key</button>
+                    </div>
+                    <!-- Mnemonic import -->
+                    <div id="import-mnemonic-panel" class="import-panel">
+                        <p>Enter your 12 or 24 word recovery phrase</p>
+                        <textarea id="import-mnemonic" placeholder="Enter mnemonic words separated by spaces..." rows="3"></textarea>
+                    </div>
+                    <!-- Private key import -->
+                    <div id="import-privkey-panel" class="import-panel" style="display:none">
+                        <p>Enter your 64-character hex private key</p>
+                        <input type="text" id="import-privkey" placeholder="Private key (64 hex characters)" autocomplete="off">
+                    </div>
+                    <input type="password" id="import-password" placeholder="Password (min 6 chars)" autocomplete="new-password">
+                    <input type="password" id="import-password2" placeholder="Confirm Password" autocomplete="new-password">
+                    <button id="btn-do-import" class="btn btn-primary">Import</button>
+                    <button id="btn-back-import" class="btn btn-ghost">Back</button>
+                </div>
+
+                <!-- Mnemonic display (after create) -->
+                <div id="mnemonic-display" style="display:none">
+                    <h2>🔐 Recovery Phrase</h2>
+                    <p class="warning">⚠️ Write these words down! This is the ONLY way to recover your wallet.</p>
+                    <p class="mnemonic-subtitle">Store them safely offline. Never share them with anyone.</p>
+                    <div id="mnemonic-grid" class="mnemonic-grid"></div>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="saved-checkbox"> I have written down my recovery phrase
+                    </label>
+                    <button id="btn-continue" class="btn btn-primary" disabled>Continue to Wallet</button>
+                </div>
+
+                <div id="auth-error" class="error-msg" style="display:none"></div>
+            </div>
+        </div>
+
+        <!-- Main Wallet Screen -->
+        <div id="wallet-screen" class="screen">
+            <div class="balance-card card">
+                <div class="balance-label">Balance</div>
+                <div class="balance-amount">
+                    <span id="balance-value">--</span>
+                    <span class="balance-unit">tKAS</span>
+                </div>
+                <div id="balance-usd" class="balance-sub"></div>
+                <button id="btn-refresh" class="btn-icon" title="Refresh">↻</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="receive">Receive</button>
+                <button class="tab" data-tab="send">Send</button>
+                <button class="tab" data-tab="whisper">🌊 Whisper</button>
+                <button class="tab" data-tab="settings">Settings</button>
+            </div>
+
+            <!-- Receive Tab -->
+            <div id="tab-receive" class="tab-content active">
+                <div class="card">
+                    <h3>Your Address</h3>
+                    <div id="qr-container"></div>
+                    <div id="address-display" class="address-text"></div>
+                    <button id="btn-copy-addr" class="btn btn-secondary">📋 Copy Address</button>
+                    <div class="faucet-section">
+                        <p>Need test tKAS?</p>
+                        <a href="https://office.openclaw-alpha.com/faucet" target="_blank" class="btn btn-accent">🚰 Get tKAS from Faucet</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Tab -->
+            <div id="tab-send" class="tab-content">
+                <div class="card">
+                    <h3>Send tKAS</h3>
+                    <label>Recipient Address</label>
+                    <input type="text" id="send-address" placeholder="kaspatest:...">
+                    <label>Amount (tKAS)</label>
+                    <input type="number" id="send-amount" placeholder="0.0" step="0.00000001" min="0">
+                    <div class="fee-info">Network fee: ~0.0001 tKAS</div>
+                    <input type="password" id="send-password" placeholder="Wallet password">
+                    <button id="btn-send" class="btn btn-primary">Send</button>
+                    <div id="send-result" style="display:none"></div>
+                </div>
+            </div>
+
+            <!-- Whisper Tab -->
+            <div id="tab-whisper" class="tab-content">
+                <div class="whisper-subtabs">
+                    <button class="whisper-subtab active" data-subtab="inbox">📥 Inbox</button>
+                    <button class="whisper-subtab" data-subtab="compose">✉️ Compose</button>
+                </div>
+
+                <div id="whisper-inbox" class="card whisper-panel active">
+                    <div class="whisper-inbox-header">
+                        <h3>📥 Whisper Inbox</h3>
+                        <button id="btn-refresh-inbox" class="btn-icon-sm" title="Refresh">↻</button>
+                    </div>
+                    <div id="inbox-list" class="inbox-list">
+                        <div class="inbox-empty">No whispers yet. Share your address to receive encrypted messages!</div>
+                    </div>
+                </div>
+
+                <div id="whisper-compose" class="card whisper-panel" style="display:none">
+                    <h3>✉️ Send Whisper</h3>
+                    <p>End-to-end encrypted message on Kaspa blockchain</p>
+                    <label>Recipient Address</label>
+                    <input type="text" id="whisper-to" placeholder="kaspatest:...">
+                    <label>Message</label>
+                    <textarea id="whisper-message" placeholder="Type your secret message..." rows="4"></textarea>
+                    <div class="whisper-info">
+                        <span>🔒 ECIES encrypted with recipient's public key</span>
+                        <span>💰 Deposit: 0.2 tKAS (refunded when read)</span>
+                    </div>
+                    <input type="password" id="whisper-password" placeholder="Wallet password to sign">
+                    <button id="btn-send-whisper" class="btn btn-primary">🌊 Send Whisper</button>
+                    <div id="whisper-send-result" style="display:none"></div>
+                </div>
+
+                <div id="whisper-read" class="card" style="display:none">
+                    <h3>🔓 Decrypted Whisper</h3>
+                    <div id="whisper-read-meta" class="whisper-meta"></div>
+                    <div id="whisper-read-content" class="whisper-content"></div>
+                    <button id="btn-close-whisper" class="btn btn-ghost">← Back to Inbox</button>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="tab-settings" class="tab-content">
+                <div class="card">
+                    <h3>Settings</h3>
+                    <button id="btn-export" class="btn btn-secondary">🔑 Export Private Key</button>
+                    <button id="btn-logout" class="btn btn-secondary">🔒 Lock Wallet</button>
+                    <button id="btn-delete" class="btn btn-danger">🗑️ Delete Wallet</button>
+                    <div class="info-section">
+                        <p><strong>Network:</strong> Testnet-12</p>
+                        <p><strong>Node:</strong> wRPC (Borsh)</p>
+                        <p><strong>Security:</strong> AES-256-GCM + PBKDF2</p>
+                        <p><strong>Key Derivation:</strong> BIP-39 / BIP-32</p>
+                        <p><strong>Path:</strong> m/44'/111111'/0'/0/0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Modal -->
+        <div id="export-modal" class="modal" style="display:none">
+            <div class="modal-content card">
+                <h3>Export Private Key</h3>
+                <p class="warning">⚠️ Never share your private key!</p>
+                <input type="password" id="export-password" placeholder="Enter password">
+                <button id="btn-do-export" class="btn btn-primary">Decrypt & Show</button>
+                <div id="export-result" class="privkey-box" style="display:none"></div>
+                <button id="btn-close-export" class="btn btn-ghost">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="kaspa-wallet.js"></script>
+</body>
+</html>

@@ -24,7 +24,7 @@ export class WorldState {
   apply(msg: WorldMessage): void {
     // Record non-position events in history (positions are too frequent)
     // Whispers are stored separately, not in public event history
-    if (msg.worldType !== "position" && msg.worldType !== "action" && msg.worldType !== "whisper") {
+    if (msg.worldType !== "position" && msg.worldType !== "action" && msg.worldType !== "dm") {
       this.eventBuf[this.eventWriteIdx] = msg;
       this.eventWriteIdx = (this.eventWriteIdx + 1) % EVENT_HISTORY_SIZE;
       this.eventCount++;
@@ -88,7 +88,7 @@ export class WorldState {
 
       case "chat":
       case "emote":
-      case "whisper":
+      case "dm":
         this.registry.touch(msg.agentId);
         break;
     }

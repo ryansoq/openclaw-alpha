@@ -25,6 +25,7 @@ import { handleRestRoute } from "./routes/rest.js";
 import { handleIpcCommand } from "./routes/ipc.js";
 import { NotificationDispatcher } from "./notification.js";
 import { TxListener } from "./tx-listener.js";
+import { KaspaNotifyService } from "./kaspa-notify.js";
 import { SubscriptionManager } from "./ws-subscribe.js";
 import { json, readBody } from "./http-utils.js";
 import type { ServerContext } from "./context.js";
@@ -51,12 +52,14 @@ prBoard.start();
 const dashboardStore = new DashboardStore();
 const screenStore = new ScreenStore();
 const messageStore = new (await import("./message-store.js")).MessageStore();
+const dmStore = new (await import("./dm-store.js")).DmStore();
 
 // ── Notification & TX Listener ─────────────────────────────────
 
 // ClientManager needs to exist before NotificationDispatcher — defer init
 let notificationDispatcher: NotificationDispatcher;
 let txListener: TxListener;
+let kaspaNotify: KaspaNotifyService;
 
 // ── Game engine ─────────────────────────────────────────────────
 
@@ -66,6 +69,7 @@ const clientManager = new ClientManager();
 
 notificationDispatcher = new NotificationDispatcher(registry, clientManager);
 txListener = new TxListener(registry, messageStore, notificationDispatcher);
+kaspaNotify = new KaspaNotifyService(registry, webhook);
 
 commandQueue.setObstacles([
   { x: -22, z: 0, radius: 2 },     // moltbook
@@ -100,7 +104,7 @@ const getRoomInfo = createRoomInfoGetter(
 const ctx: ServerContext = {
   registry, state, eventStore, commandQueue, clawhub,
   nostr, clientManager, gameLoop, auth, webhook, visitorLog, taskBoard, prBoard,
-  dashboardStore, screenStore, messageStore, config, getRoomInfo,
+  dashboardStore, screenStore, messageStore, dmStore, config, getRoomInfo,
 };
 
 // ── HTTP server ─────────────────────────────────────────────────
@@ -122,6 +126,35 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
 
   // REST API routes
   if (await handleRestRoute(req, res, ctx)) return;
+
+  // ── Faucet proxy (/faucet* → localhost:18805) ──────────
+  if (url.startsWith("/faucet")) {
+    try {
+      const targetUrl = `http://127.0.0.1:18805${url}`;
+      const headers: Record<string, string> = { "host": "127.0.0.1:18805" };
+      if (req.headers["content-type"]) headers["content-type"] = req.headers["content-type"] as string;
+      if (req.headers["origin"]) headers["origin"] = req.headers["origin"] as string;
+
+      const body = method === "GET" || method === "HEAD" ? undefined : await new Promise<Buffer>((resolve) => {
+        const chunks: Buffer[] = [];
+        req.on("data", (c: Buffer) => chunks.push(c));
+        req.on("end", () => resolve(Buffer.concat(chunks)));
+      });
+
+      const proxyRes = await fetch(targetUrl, { method, headers, body: body && body.length > 0 ? body : undefined });
+      const resBody = await proxyRes.text();
+      const resHeaders: Record<string, string> = {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": proxyRes.headers.get("content-type") ?? "application/json",
+      };
+      res.writeHead(proxyRes.status, resHeaders);
+      res.end(resBody);
+    } catch {
+      res.writeHead(502, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Faucet unavailable" }));
+    }
+    return;
+  }
 
   // ── Whisper API proxy (/whisper/* → localhost:18803) ──────────
   if (url.startsWith("/whisper/") || url === "/whisper") {
@@ -233,6 +266,7 @@ async function main() {
 
   gameLoop.start();
   txListener.start();
+  kaspaNotify.start();
 
   // Rebuild agent profiles from chain if profiles.json was empty
   if (registry.getAll().length === 0) {
@@ -272,6 +306,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
     console.log(`\n[server] ${sig} received, shutting down...`);
     gameLoop.stop();
     txListener.stop();
+    kaspaNotify.stop();
     eventStore.close();
     nostr.close();
     server.close();

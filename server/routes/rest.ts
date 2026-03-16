@@ -597,6 +597,117 @@ export async function handleRestRoute(
     return true;
   }
 
+  // ── /api/dm/* — Whisper private messaging API ─────────
+  if (url.startsWith("/api/dm/") && (method === "GET" || method === "POST")) {
+    try {
+      const reqUrl = new URL(req.url ?? "/", "http://localhost");
+      const path = reqUrl.pathname;
+      const body = method === "POST" ? await readBody(req) as Record<string, unknown> : {};
+      const authHeader = req.headers.authorization ?? "";
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      const agentId = (reqUrl.searchParams.get("agent") || (body as Record<string, string>).from || (body as Record<string, string>).agent) as string;
+
+      if (!agentId) {
+        json(res, 400, { ok: false, error: "agent param required" });
+        return true;
+      }
+
+      // POST (send/read) requires auth; GET (inbox/conversation/contacts) is public
+      if (method === "POST" && !ctx.auth.validate(token, agentId)) {
+        json(res, 401, { ok: false, error: "Unauthorized" });
+        return true;
+      }
+
+      // GET /api/dm/inbox
+      if (path === "/api/dm/inbox" && method === "GET") {
+        const inbox = ctx.dmStore.getInbox(agentId);
+        // Enrich with names from visitor log
+        const visitors = ctx.visitorLog.getAll();
+        for (const item of inbox) {
+          const v = visitors[item.agentId];
+          if (v?.name) item.name = v.name;
+        }
+        json(res, 200, { ok: true, inbox });
+        return true;
+      }
+
+      // GET /api/dm/conversation/:targetId
+      const convoMatch = path.match(/^\/api\/dm\/conversation\/([^/]+)$/);
+      if (convoMatch && method === "GET") {
+        const targetId = decodeURIComponent(convoMatch[1]);
+        const limit = Math.min(Number(reqUrl.searchParams.get("limit") || "50"), 200);
+        const since = Number(reqUrl.searchParams.get("since") || "0");
+        const messages = ctx.dmStore.getConversation(agentId, targetId, limit, since);
+        json(res, 200, { ok: true, messages });
+        return true;
+      }
+
+      // POST /api/dm/send
+      if (path === "/api/dm/send" && method === "POST") {
+        const { from, to, text, encrypt } = body as { from: string; to: string; text: string; encrypt?: boolean };
+        if (!from || !to || (!text && !encrypt)) {
+          json(res, 400, { ok: false, error: "from, to, text required" });
+          return true;
+        }
+
+        if (encrypt) {
+          // Record an already-encrypted message (agent handles encryption locally)
+          const { txId } = body as { txId?: string };
+          const entry = ctx.dmStore.add(from, to, "[encrypted]", {
+            encrypted: true,
+            txId: txId || "",
+          });
+          ctx.clientManager.broadcast(JSON.stringify({ type: "world", message: {
+            worldType: "dm", agentId: from, targetId: to, text: "🔒", timestamp: entry.timestamp,
+          }}));
+          // Auto-notify recipient via webhook/Telegram
+          ctx.webhook.notifyMentions(from, `@${to}`);
+          json(res, 200, { ok: true, message: entry, txId });
+          return true;
+        }
+
+        const entry = ctx.dmStore.add(from, to, text);
+        ctx.clientManager.broadcast(JSON.stringify({ type: "world", message: {
+          worldType: "dm", agentId: from, targetId: to, text, timestamp: entry.timestamp,
+        }}));
+        // Auto-notify recipient via webhook/Telegram
+        ctx.webhook.notifyMentions(from, `@${to}`);
+        json(res, 200, { ok: true, message: entry });
+        return true;
+      }
+
+      // POST /api/dm/read
+      if (path === "/api/dm/read" && method === "POST") {
+        const { agent, from: fromAgent } = body as { agent: string; from: string };
+        if (!agent || !fromAgent) {
+          json(res, 400, { ok: false, error: "agent, from required" });
+          return true;
+        }
+        const marked = ctx.dmStore.markRead(agent, fromAgent);
+        json(res, 200, { ok: true, marked });
+        return true;
+      }
+
+      // GET /api/dm/contacts
+      if (path === "/api/dm/contacts" && method === "GET") {
+        const contactIds = ctx.dmStore.getContacts(agentId);
+        const visitors = ctx.visitorLog.getAll();
+        const contacts = contactIds.map(id => {
+          const v = visitors[id];
+          return { agentId: id, name: v?.name, bio: v?.bio, lastSeen: v?.lastVisit };
+        });
+        json(res, 200, { ok: true, contacts });
+        return true;
+      }
+
+      json(res, 404, { ok: false, error: "Not found" });
+      return true;
+    } catch (err) {
+      json(res, 500, { ok: false, error: sanitizeError(err) });
+      return true;
+    }
+  }
+
   // ── /health — Server health check ─────────────────────────
   if (method === "GET" && url === "/health") {
     json(res, 200, {

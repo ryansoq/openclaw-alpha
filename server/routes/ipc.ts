@@ -171,7 +171,7 @@ export async function handleIpcCommand(
       if (!a?.agentId || !a?.targetId || !a?.text) throw new Error("agentId, targetId, and text required");
       const text = a.text.slice(0, 500);
       const msg: WorldMessage = {
-        worldType: "whisper", agentId: a.agentId, targetId: a.targetId,
+        worldType: "dm", agentId: a.agentId, targetId: a.targetId,
         text, timestamp: Date.now(),
       };
       ctx.commandQueue.enqueue(msg);
@@ -260,16 +260,32 @@ export async function handleIpcCommand(
       return { ok: true, events: ctx.eventStore.query(Number(a?.since ?? 0), Math.min(Number(a?.limit ?? 50), 200)) };
     }
 
-    case "room-whispers": {
+    case "room-dms": {
       const wa = args as { agent?: string; since?: number; limit?: number };
       if (!wa?.agent) return { ok: false, error: "agent param required" };
       const since = Number(wa.since ?? 0);
       const limit = Math.min(Number(wa.limit ?? 20), 100);
       const allEvents = ctx.eventStore.query(since, 500);
-      const whispers = allEvents
-        .filter(e => e.worldType === "whisper" && ((e as WhisperMessage).targetId === wa.agent || e.agentId === wa.agent))
+      const dms = allEvents
+        .filter(e => e.worldType === "dm" && ((e as WhisperMessage).targetId === wa.agent || e.agentId === wa.agent))
         .slice(-limit);
-      return { ok: true, agent: wa.agent, whispers, count: whispers.length };
+      return { ok: true, agent: wa.agent, dms, count: dms.length };
+    }
+
+    case "dm-send": {
+      const ws = args as { from?: string; to?: string; text?: string; encrypted?: boolean; txId?: string };
+      if (!ws?.from || !ws?.to || !ws?.text) {
+        return { ok: false, error: "from, to, text required" };
+      }
+      const entry = ctx.dmStore.add(ws.from, ws.to, ws.text, {
+        encrypted: ws.encrypted,
+        txId: ws.txId,
+      });
+      ctx.clientManager.broadcast(JSON.stringify({ type: "world", message: {
+        worldType: "dm", agentId: ws.from, targetId: ws.to,
+        text: ws.text, timestamp: entry.timestamp,
+      }}));
+      return { ok: true, message: entry };
     }
 
     case "room-mentions": {
